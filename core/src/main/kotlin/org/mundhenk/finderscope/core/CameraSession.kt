@@ -315,6 +315,7 @@ class CameraSession(
     }
 
     @Volatile private var lastNoticeNts = ""
+    @Volatile private var otherNoticeSeen = false
     @Volatile private var lastRotation: Rotation? = null
 
     private fun onNotice(n: SsdpNotice) {
@@ -322,7 +323,11 @@ class CameraSession(
         // the camera by its address; the NX1000 sends its turn notices under a fixed UUID that need
         // not be the one in its description, and for several device / service types
         val fromCamera = n.from == host || (c.udn.isNotEmpty() && n.usn.contains(c.udn.removePrefix("uuid:")))
-        if (!fromCamera) return
+        if (!fromCamera) {
+            // tells "nothing arrives" apart from "the camera says nothing"
+            if (!otherNoticeSeen) { otherNoticeSeen = true; log("SSDP: notices arrive, the first from ${n.from.ifEmpty { "an unknown sender" }} (not the camera)") }
+            return
+        }
         val rotation = Rotation.fromNotice(n.nts)
         if (n.nts != lastNoticeNts) { lastNoticeNts = n.nts; log("SSDP from the camera: ${n.nts} (${n.nt})") }
         when {

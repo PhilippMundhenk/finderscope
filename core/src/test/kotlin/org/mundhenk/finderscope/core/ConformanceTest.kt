@@ -410,6 +410,7 @@ class ConformanceTest {
         waitFor { ev.rotation == Rotation.R }
         val other = sim2()
         other.sendNotice("ssdp:byebye", to, from = "127.0.0.2") // another camera, another address
+        waitFor { ev.log.any { it.contains("notices arrive, the first from 127.0.0.2") } }
         Thread.sleep(300)
         assertFalse(cs.isClosed)
         s.sendNotice("ssdp:byebye", to)

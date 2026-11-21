@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Turning the camera still did not turn the picture: finderscope joined the multicast group for
+  the camera's notices on the phone's default network (mobile data or home Wi-Fi), never on the
+  camera's network, so the turn notices (and the camera search) never arrived. The group is now
+  joined on the camera network's interface. The log says where it listens, and when notices
+  arrive from other devices but none from the camera.
+
 ## [0.1.13] - 2026-11-21
 
 ### Fixed

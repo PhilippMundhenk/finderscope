@@ -167,7 +167,9 @@ ConnectionManager service, USN `<UDN of the description>::urn:schemas-upnp-org:s
   models count 1..4 = D, L, U, R, the WB850F counts 0..3 = D, R, U, L.
 * `NTS: ssdp:byebye` when the camera leaves Remote Viewfinder mode.
 
-finderscope listens for these on the camera network (with a multicast lock) and ignores notices
+finderscope listens for these on the camera network (with a multicast lock, and with the group
+joined on the camera network's interface: the camera network is not the phone's default network,
+and a group joined without an interface ends up on mobile data or the home Wi-Fi) and ignores notices
 whose USN is not the connected camera's.
 
 ## AF frames

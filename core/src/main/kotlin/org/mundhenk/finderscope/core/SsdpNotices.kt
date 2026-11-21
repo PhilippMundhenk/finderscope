@@ -44,11 +44,20 @@ class SsdpNotices(private val socket: DatagramSocket, private val onNotice: (Ssd
         val GROUP: InetAddress = InetAddress.getByName("239.255.255.250")
         const val PORT = 1900
 
-        /** A socket in the SSDP multicast group (port 1900, shared with other listeners). */
-        fun multicast(): DatagramSocket = MulticastSocket(null).apply {
+        /**
+         * A socket in the SSDP multicast group (port 1900, shared with other listeners). On a phone
+         * [iface] must be the camera network's interface: without one the group is joined on the
+         * default network (mobile data or home Wi-Fi), and the camera's notices never arrive.
+         */
+        fun multicast(iface: java.net.NetworkInterface? = null): DatagramSocket = MulticastSocket(null).apply {
             reuseAddress = true
             bind(InetSocketAddress(PORT))
-            @Suppress("DEPRECATION") joinGroup(GROUP)
+            val onIface = iface != null && runCatching {
+                networkInterface = iface // searches go out there too
+                joinGroup(InetSocketAddress(GROUP, PORT), iface)
+            }.isSuccess
+            // an interface that refuses: the default network is still better than no notices at all
+            if (!onIface) @Suppress("DEPRECATION") joinGroup(GROUP)
         }
 
         /** A NOTIFY datagram -> [SsdpNotice]; null for anything else (searches, answers). */

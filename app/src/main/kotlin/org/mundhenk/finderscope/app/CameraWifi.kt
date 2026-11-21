@@ -185,6 +185,13 @@ class CameraWifi(private val context: Context) {
     private fun wifiNetworks(): List<Network> =
         cm.allNetworks.filter { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true }
 
+    /** The camera network's interface (wlan0 or similar), for multicast; null for loopback or when unknown. */
+    fun cameraInterface(host: String): java.net.NetworkInterface? {
+        if (host == "localhost" || host.startsWith("127.")) return null
+        val name = cameraNetwork()?.let { cm.getLinkProperties(it)?.interfaceName } ?: return null
+        return runCatching { java.net.NetworkInterface.getByName(name) }.getOrNull()
+    }
+
     /** The camera's address: the gateway of the camera network (usually 192.168.102.1). */
     fun gateway(): String? {
         val lp: LinkProperties = cameraNetwork()?.let { cm.getLinkProperties(it) } ?: return null

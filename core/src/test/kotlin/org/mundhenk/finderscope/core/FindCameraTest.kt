@@ -97,6 +97,16 @@ class FindCameraTest {
         assertTrue(ev.log.toString(), ev.log.any { it.contains("did not answer at 127.0.0.1") })
     }
 
+    /** The group joined on a given interface (on a phone: the camera network's), where the machine has one. */
+    @Test
+    fun multicastOnAnInterface() {
+        val iface = java.net.NetworkInterface.getNetworkInterfaces().toList().firstOrNull { it.isUp && !it.isLoopback && it.supportsMulticast() }
+        org.junit.Assume.assumeTrue("no multicast interface here", iface != null)
+        // machines without a multicast route (some sandboxes) cannot join any group: nothing to test there
+        val socket = try { SsdpNotices.multicast(iface) } catch (e: java.net.SocketException) { org.junit.Assume.assumeNoException(e); return }
+        socket.use { assertEquals(SsdpNotices.PORT, it.localPort) }
+    }
+
     @Test
     fun ssdpParsing() {
         fun msg(vararg l: String) = l.joinToString("\r\n") + "\r\n\r\n"

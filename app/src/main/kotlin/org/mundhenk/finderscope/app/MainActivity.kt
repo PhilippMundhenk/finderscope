@@ -331,14 +331,16 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         val notices: ((onNotice: (org.mundhenk.finderscope.core.SsdpNotice) -> Unit) -> SsdpNotices?)? = if (loopback) null else { cb ->
             runCatching {
                 multicastLock = getSystemService(WifiManager::class.java).createMulticastLock("finderscope").apply { setReferenceCounted(false); acquire() }
-                SsdpNotices(wifi.bind(SsdpNotices.multicast(), host), cb).start()
-            }.getOrNull()
+                val iface = wifi.cameraInterface(host)
+                LogBus.log("listening for the camera's notices (turns, goodbye) on ${iface?.name ?: "the default network"}")
+                SsdpNotices(wifi.bind(SsdpNotices.multicast(iface), host), cb).start()
+            }.onFailure { LogBus.log("camera notices not available: $it") }.getOrNull()
         }
         // the camera may need a moment after the phone joined, and may announce itself elsewhere: SSDP on its network
         val discover: ((Long) -> CameraLocation?)? = if (loopback) null else { t ->
             runCatching {
                 if (multicastLock == null) multicastLock = getSystemService(WifiManager::class.java).createMulticastLock("finderscope").apply { setReferenceCounted(false); acquire() }
-                wifi.bind(SsdpNotices.multicast(), host).use { SsdpSearch.search(it, t, log = { m -> LogBus.log(m) }) }
+                wifi.bind(SsdpNotices.multicast(wifi.cameraInterface(host)), host).use { SsdpSearch.search(it, t, log = { m -> LogBus.log(m) }) }
             }.getOrNull()
         }
         val s = CameraSession(host, port, prefs.clientId, this, RvfHttp(wifi.socketFactory(host)), notices, log = { LogBus.log(it) }, discover = discover, findTimeoutMs = findTimeoutMs)
