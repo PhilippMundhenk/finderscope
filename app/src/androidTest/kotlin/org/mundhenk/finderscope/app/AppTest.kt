@@ -418,6 +418,14 @@ class AppTest {
             onView(withId(R.id.gpsTag)).perform(tap())
             assertEquals(false, Prefs(context).gpsTag)
             onView(withId(R.id.version)).check(matches(withSubstring("finderscope")))
+            // background connection time: 5 minutes by default, 0 = off, at most 30
+            onView(withId(R.id.awayLabel)).check(matches(withSubstring("5 minutes")))
+            it.onActivity { a -> a.findViewById<com.google.android.material.slider.Slider>(R.id.awayMinutes).value = 1f }
+            onView(withId(R.id.awayLabel)).check(matches(withSubstring("1 minute")))
+            assertEquals(1, Prefs(context).awayMinutes)
+            it.onActivity { a -> a.findViewById<com.google.android.material.slider.Slider>(R.id.awayMinutes).value = 0f }
+            onView(withId(R.id.awayLabel)).check(matches(withText(R.string.away_off)))
+            Prefs(context).awayMinutes = 99; assertEquals(30, Prefs(context).awayMinutes)
         }
         LogBus.log("hello from the test")
         ActivityScenario.launch(LogActivity::class.java).use {

@@ -40,4 +40,9 @@ class Prefs(context: Context) {
     var gpsTag: Boolean
         get() = sp.getBoolean("gpsTag", false)
         set(v) = sp.edit().putBoolean("gpsTag", v).apply()
+
+    /** Minutes the connection is kept while finderscope is not on screen (0 = disconnect right away). */
+    var awayMinutes: Int
+        get() = sp.getInt("awayMinutes", 5)
+        set(v) = sp.edit().putInt("awayMinutes", v.coerceIn(0, 30)).apply()
 }

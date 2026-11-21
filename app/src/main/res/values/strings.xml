@@ -73,4 +73,11 @@
     <string name="gps_tag_hint">The camera writes the position into the picture. Needs the location permission.</string>
     <string name="version">finderscope %1$s</string>
     <string name="disclaimer">finderscope is an independent open-source project. It has no relation to Samsung Electronics and is neither endorsed nor supported by them. Camera names only say which cameras it works with.</string>
+    <string name="away_title">Stay connected in the background</string>
+    <plurals name="away_value">
+        <item quantity="one">Stay connected in the background: %d minute</item>
+        <item quantity="other">Stay connected in the background: %d minutes</item>
+    </plurals>
+    <string name="away_off">Stay connected in the background: off</string>
+    <string name="away_hint">While finderscope is not on screen the camera stays connected for this long, so you can switch apps without the camera leaving Remote Viewfinder. Off: disconnect right away.</string>
 </resources>

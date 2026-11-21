@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- *Settings → Stay connected in the background*: how long the camera stays connected while
+  finderscope is not on screen, 0 to 30 minutes (5 by default; 0.1.6 kept it for 10).
+
 ## [0.1.6] - 2026-11-21
 
 ### Changed

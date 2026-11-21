@@ -148,14 +148,14 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         // The connection stays: ending it makes the camera leave Remote Viewfinder ("network
         // disconnected"), and closing the live view at the wrong moment can even hang an NX1000.
         // Only the picture is not drawn while away; after a long absence the session ends.
-        if (session != null && !isChangingConfigurations) main.postDelayed(endWhileAway, awayMs)
+        if (session != null && !isChangingConfigurations) main.postDelayed(endWhileAway, awayMs ?: prefs.awayMinutes * 60_000L)
         super.onStop()
     }
 
-    private val endWhileAway = Runnable { LogBus.log("away for ${awayMs / 1000} s: disconnecting"); stopSession(keepResume = true) }
+    private val endWhileAway = Runnable { LogBus.log("not on screen for the set time: disconnecting"); stopSession(keepResume = true) }
 
-    /** How long the connection is kept while finderscope is not on screen (tests shorten it). */
-    internal var awayMs = AWAY_MS
+    /** How long the connection is kept while finderscope is not on screen; null = the setting (tests set it). */
+    internal var awayMs: Long? = null
 
     override fun onDestroy() {
         main.removeCallbacks(endWhileAway)
@@ -657,7 +657,5 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         const val CONTROLS_SIDE = 112
         const val CONTROLS_ZOOM = 176
         const val NOTICE_MS = 4_000L
-        /** How long the connection is kept while finderscope is not on screen. */
-        const val AWAY_MS = 10 * 60_000L
     }
 }
