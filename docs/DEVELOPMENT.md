@@ -37,8 +37,9 @@ them into `docs/screenshots/` when the UI changed. Tags `vX.Y.Z` publish a GitHu
 (`git tag v0.1.0 && git push --tags`; date the CHANGELOG section first). The release APK is
 signed with the repository secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Without them a build on `main` is debug-signed, but
-a release tag fails: every CI runner has its own debug key, so phones would refuse the update
-(0.1.0 to 0.1.4 were published that way and need one uninstall). The key must never change.
+a release tag is published debug-signed with a warning: every CI runner has its own debug key,
+so each such release needs the previous one uninstalled first. Once the secrets exist the key
+must never change.
 
 ## Clean room
 

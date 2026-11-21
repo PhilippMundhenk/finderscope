@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-21
+
+Still debug-signed: uninstall the previous version before installing.
+
 ### Fixed
 - After a picture the NX1000 live view froze (grey shutter, green focus frame) until the camera
   dropped the connection: the camera sends a new AVI header in the middle of the stream after
@@ -19,9 +23,6 @@ All notable changes to this project are documented here. The format follows
 - Black bar or cut-off live view: the NX1000 stream header always says 320x240; the picture is
   now laid out with the size the decoder actually produces. A decoder error restarts the decoder
   at the next key frame instead of stopping the picture.
-- Updates install over the previous version again: releases are signed with one fixed release
-  key. 0.1.0 to 0.1.4 had a different throwaway key each, so the first signed release needs one
-  uninstall of the old version.
 
 ## [0.1.4] - 2026-11-21
 

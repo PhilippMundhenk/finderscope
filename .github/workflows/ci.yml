@@ -39,7 +39,7 @@ jobs:
           if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > app/release.keystore
           elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             # a debug key is new on every runner: phones would refuse the update over the last release
-            echo "::error::release tag without the ANDROID_KEYSTORE_* secrets: not publishing a debug-signed APK"; exit 1
+            echo "::warning::release tag without the ANDROID_KEYSTORE_* secrets: the APK is debug-signed with this runner's key, so it does not install over the previous release"
           fi
           ./gradlew :app:assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release*.apk finderscope-${GITHUB_REF_NAME//\//-}.apk
