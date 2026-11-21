@@ -111,6 +111,8 @@ class RvfCameraSimulator(
      */
     @Volatile var shotPauseMs = 0L
     @Volatile private var pausedUntil = 0L
+    /** The live view is ended this long after the Shot answer (frames still come meanwhile). */
+    @Volatile var endStreamDelayMs = 0L
     /** Keep the live-view connection open but stop sending frames. */
     @Volatile var stallStream = false
     /** GetInfomation ROTATION. */
@@ -251,6 +253,7 @@ class RvfCameraSimulator(
             val reply = answer(action, body)
             if (action == "Shot" || action == "ShotWithGPS") {
                 if (shotPauseMs > 0) pausedUntil = System.currentTimeMillis() + shotPauseMs
+                else if (endStreamDelayMs > 0) Thread { Thread.sleep(endStreamDelayMs); endStreams() }.start()
                 else endStreams() // the camera stops the live view to take the picture
             }
             return HttpResponse.xml(Upnp.soapResponse(action, reply))

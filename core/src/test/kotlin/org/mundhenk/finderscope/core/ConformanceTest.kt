@@ -320,6 +320,21 @@ class ConformanceTest {
         assertEquals(emptyList<String>(), s.violations.toList())
     }
 
+    /** Frames that still arrive right after the Shot answer are not the camera going on: no early shutter, no "reconnected". */
+    @Test
+    fun framesRightAfterTheShot() {
+        val s = camera().apply { endStreamDelayMs = 200 }
+        val (cs, ev) = session(s)
+        cs.tap()
+        waitFor(what = "picture") { ev.pictures.isNotEmpty() }
+        waitFor(what = "stream again") { s.streamOpens.get() == 2 }
+        waitFor(what = "shutter back") { ev.log.count { it == "ready:true" } == 2 }
+        Thread.sleep(300)
+        assertFalse(ev.log.toString(), ev.has("notice:RECONNECTED"))
+        assertEquals(2, ev.log.count { it == "ready:true" })
+        assertEquals(emptyList<String>(), s.violations.toList())
+    }
+
     /** A stream that stays silent after reopening is dropped less and less often, and the log says how much came. */
     @Test
     fun repeatedStallsBackOff() {

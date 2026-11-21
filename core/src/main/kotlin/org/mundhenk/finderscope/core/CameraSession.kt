@@ -69,6 +69,8 @@ class CameraSession(
     companion object {
         /** [Listener.onState] message while the camera does not answer yet. */
         const val WAITING = "waiting for the camera"
+        /** Frames sooner than this after the picture are still buffered from before it, not the camera going on. */
+        private const val RESUME_AFTER_MS = 500L
         const val STOPPED_SENDING = "The camera stopped sending its live view. Switch Remote Viewfinder off and on again on the camera."
     }
 
@@ -172,7 +174,7 @@ class CameraSession(
                 if (first) {
                     // The 2013+ firmware (stream URL in StreamUrl) was driven with a half-press and release right away; the 2012 one was not.
                     if (!info.fromGetIp && c.canFocus) command { c.focus(); c.releaseFocus() }
-                } else if (!endedByShot.getAndSet(false)) command { listener.onNotice(Notice.RECONNECTED) }
+                } else if (!endedByShot.getAndSet(false) && System.currentTimeMillis() - lastShotAt > afterShotQuietMs) command { listener.onNotice(Notice.RECONNECTED) }
                 command { listener.onReady(shutterUsable()) }
                 first = false
                 try { pump(reader) } catch (e: IOException) { if (closed.get()) break else log("live view interrupted: ${e.message}") }
@@ -208,6 +210,7 @@ class CameraSession(
 
     @Volatile private var reader: AviFrameReader? = null
     @Volatile private var quietUntil = 0L
+    @Volatile private var lastShotAt = 0L
     /** Stalls in a row without a frame: each one waits longer before the stream is dropped again. */
     private val stallsInRow = AtomicInteger(0)
 
@@ -242,7 +245,7 @@ class CameraSession(
             lastFrameAt.set(System.currentTimeMillis())
             stallsInRow.set(0)
             frames.incrementAndGet()
-            if (!live.get()) {
+            if (!live.get() && !capturing.get() && System.currentTimeMillis() - lastShotAt > RESUME_AFTER_MS) {
                 // the same connection goes on after a picture (NX1000): the shutter is back
                 setLive(true)
                 if (endedByShot.getAndSet(false)) command { listener.onReady(shutterUsable()) }
@@ -354,7 +357,8 @@ class CameraSession(
             streamEnded = true
             endedByShot.set(true)
             setLive(false)
-            quietUntil = System.currentTimeMillis() + afterShotQuietMs
+            lastShotAt = System.currentTimeMillis()
+            quietUntil = lastShotAt + afterShotQuietMs
             val url = shot.url
             when {
                 url == null -> listener.onNotice(if (options.savePictures) Notice.NO_PICTURE else Notice.ON_CARD_ONLY)

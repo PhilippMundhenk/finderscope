@@ -6,7 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-21
+
+### Fixed
+- Frames still buffered from before a picture made 0.1.3 bring the shutter back too early and
+  show "reconnected" over the "saved" message. Found by the UI tests on the release build.
+
 ## [0.1.3] - 2026-11-21
+
+Tagged but not published: replaced by 0.1.4.
 
 ### Changed
 - While joining the camera Wi-Fi or connecting, the join button is **Cancel** and the other
