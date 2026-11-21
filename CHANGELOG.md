@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-11-21
+
 ### Changed
 - Less delay in the live view: the decoder runs in low-latency mode and each picture is shown
   the moment it is decoded (before, a decoded frame could wait for the next one to arrive). The
