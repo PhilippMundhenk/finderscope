@@ -6,12 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-### Changed
+## [0.1.0] - 2026-11-21
+
+First release. Complete against the simulated camera (conformance suite, UI tests on an
+emulator); not yet tried on a real camera (#4, #5).
+
+### Added
 - Camera-style design: full-screen live view with the controls floating over the picture, a
   round shutter button, round last-picture thumbnail, shots-left counter, flash / timer / size
   chips with icons, zoom pill; a dark start screen with one large *Join camera Wi-Fi* button.
-
-### Added
 - Live view of the camera (H.264 through MediaCodec, MJPEG), shutter with the camera's press /
   release / slide-off semantics, volume keys as shutter, focus frames, self-timer, flash, photo
   size, zoom with repeat, remaining shots, rotation.
