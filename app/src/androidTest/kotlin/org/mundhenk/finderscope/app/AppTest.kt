@@ -260,9 +260,13 @@ class AppTest {
         val frames = H264.encode(320, 240, 30)
         assertTrue(AviFrameReader.isKeyFrame(frames.first()))
         val s = camera(RvfCameraSimulator.Profile.NX1000, frames, VideoCodec.H264, 320, 240).apply { rotation = 2 } // L
+        H264Decoder.statsSeconds = 0.5
         ActivityScenario.launch(MainActivity::class.java).use { sc ->
             connect(s)
             waitForShutter()
+            // the decoder reports frames per second and its delay to the log
+            waitFor(what = "decoder stats") { LogBus.snapshot().any { it.contains("frames/s from the camera") } }
+            H264Decoder.statsSeconds = 10.0
             var act: MainActivity? = null
             sc.onActivity { act = it }
             waitFor(what = "decoded frames") { act!!.framesDecoded > 3 }
@@ -463,7 +467,8 @@ class AppTest {
             waitFor(what = "focus on tap") { sim.calls.count { it == "MULTIAF" } == before + 1 }
             sc.onActivity { assertTrue(it.session!!.focusHeld) }
             assertEquals(0, sim.shotCount) // a tap on the picture only focuses
-            onView(withId(R.id.shutter)).perform(tap())
+            // a real touch on the shutter (down, up inside)
+            onView(withId(R.id.shutter)).perform(androidx.test.espresso.action.ViewActions.click())
             waitFor(what = "picture") { sim.shotCount == 1 }
             waitForShutter()
             // volume key: the picture too (focus and shoot in one go)
@@ -635,6 +640,13 @@ class AppTest {
                 intending(hasAction(android.provider.Settings.Panel.ACTION_WIFI)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
                 onView(withId(R.id.wifiSettings)).perform(tap())
                 intended(hasAction(android.provider.Settings.Panel.ACTION_WIFI))
+                sc.onActivity { it.wifi.ssidSource = { "AndroidWifi" } } // the phone's own Wi-Fi: no camera
+                sc.moveToState(Lifecycle.State.CREATED)
+                sc.moveToState(Lifecycle.State.RESUMED)
+                waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.not_on_camera_wifi))) }
+                // and on a camera network: finderscope connects by itself
+                onView(withId(R.id.wifiSettings)).perform(tap())
+                sc.onActivity { it.wifi.ssidSource = { "AP_SSC_NX1000_0-AA:BB:CC" } }
                 sc.moveToState(Lifecycle.State.CREATED)
                 sc.moveToState(Lifecycle.State.RESUMED)
                 waitFor(what = "after the Wi-Fi settings") {

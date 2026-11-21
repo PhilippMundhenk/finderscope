@@ -84,7 +84,7 @@ class H264Decoder(
         val line = synchronized(this) {
             val now = System.nanoTime()
             val secs = (now - statsFrom) / 1e9
-            if (secs < 10 || statsOut == 0) return
+            if (secs < statsSeconds || statsOut == 0) return
             val l = "live view: %.1f frames/s from the camera, %.1f shown, decoder %d ms".format(statsIn / secs, statsOut / secs, statsDelayNs / statsOut / 1_000_000)
             statsFrom = now; statsIn = 0; statsOut = 0; statsDelayNs = 0
             if (queuedAt.size > 100) queuedAt.clear()
@@ -93,8 +93,11 @@ class H264Decoder(
         onStats(line)
     }
 
-    private companion object {
-        val VENDOR_LOW_LATENCY = listOf(
+    companion object {
+        /** How often [onStats] reports (tests shorten it). */
+        @Volatile var statsSeconds = 10.0
+
+        private val VENDOR_LOW_LATENCY = listOf(
             "vendor.qti-ext-dec-low-latency.enable", // Qualcomm
             "vendor.qti-ext-dec-picture-order.enable",
             "vendor.rtc-ext-dec-low-latency.enable", // Samsung Exynos

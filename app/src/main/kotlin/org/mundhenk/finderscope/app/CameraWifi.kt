@@ -149,8 +149,11 @@ class CameraWifi(private val context: Context) {
     }
 
     /** The name of the Wi-Fi the phone is on (needs the location permission); null when unknown. */
+    /** The current Wi-Fi name as tests want it (null = ask Android). */
+    var ssidSource: (() -> String?)? = null
+
     @Suppress("DEPRECATION")
-    fun currentSsid(): String? = runCatching { context.getSystemService(WifiManager::class.java)?.connectionInfo?.ssid?.trim('"') }.getOrNull()
+    fun currentSsid(): String? = ssidSource?.let { return it() } ?: runCatching { context.getSystemService(WifiManager::class.java)?.connectionInfo?.ssid?.trim('"') }.getOrNull()
         ?.takeIf { it.isNotEmpty() && it != WifiManager.UNKNOWN_SSID && it != WifiManager.UNKNOWN_SSID.trim('<', '>') }
 
     /** Puts a datagram socket (SSDP notices) on the camera network, where there is one. */
