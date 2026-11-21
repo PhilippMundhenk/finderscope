@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-11-21
+
 ### Fixed
 - Android's network picker could keep searching without ever listing the camera network
   (field test with 0.1.8). finderscope now looks into the phone's own Wi-Fi scan first and asks
