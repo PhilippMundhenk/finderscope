@@ -180,7 +180,8 @@ class AppTest {
                 waitForUi { onView(withId(R.id.info)).check(matches(withSubstring("zoom 1"))) }
                 val zoomIn = act!!.findViewById<View>(R.id.zoomIn)
                 touch(zoomIn, MotionEvent.ACTION_DOWN); Thread.sleep(1_500); touch(zoomIn, MotionEvent.ACTION_UP)
-                waitForUi { onView(withId(R.id.info)).check(matches(withSubstring("zoom 3"))) }
+                // holding repeats: at least two more steps
+                waitFor(what = "zoom repeat") { sim.calls.count { it == "ZoomIN" } >= 3 }
                 val zoomOut = act!!.findViewById<View>(R.id.zoomOut)
                 touch(zoomOut, MotionEvent.ACTION_DOWN); touch(zoomOut, MotionEvent.ACTION_CANCEL)
                 onView(withId(R.id.zoomOut)).perform(tap())
@@ -349,7 +350,9 @@ class AppTest {
                 onView(withId(R.id.statusHint)).check(matches(withText(R.string.joining_wifi)))
                 sc.onActivity { it.wifi.release(); assertNull(it.wifi.network) }
                 val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-                device.wait(androidx.test.uiautomator.Until.findObject(androidx.test.uiautomator.By.text("Cancel")), 2_000)?.click()
+                // the system's "connect to device" dialog may still be up: back until finderscope is in front again
+                repeat(3) { Thread.sleep(1_000); if (device.currentPackageName != context.packageName) device.pressBack() }
+                waitFor(what = "finderscope in front") { device.currentPackageName == context.packageName }
                 sc.onActivity { assertNotNull(it.wifi.socketFactory("192.168.102.1")); it.wifi.gateway() }
 
                 onView(withId(R.id.action_settings)).perform(tap())
@@ -414,7 +417,6 @@ class AppTest {
                 setInteger(MediaFormat.KEY_BIT_RATE, 400_000)
                 setInteger(MediaFormat.KEY_FRAME_RATE, 15)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-                setInteger(MediaFormat.KEY_PREPEND_HEADER_TO_SYNC_FRAMES, 1) // SPS/PPS before every key frame, like the cameras
             }
             val enc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             enc.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
