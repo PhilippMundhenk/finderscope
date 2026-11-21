@@ -239,7 +239,8 @@ class RvfCameraSimulator(
                 "<StreamQuality><Quality><Option>high</Option><Option>low</Option></Quality><Default>high</Default></StreamQuality></GETINFORMATIONRESULT>" +
                 urls
         }
-        "MULTIAF", "AF" -> if (focusOk) "<AFSTATUS>1x3,2x3,</AFSTATUS>" else "<AFSTATUS>AFFAIL</AFSTATUS>"
+        // frames in this model's own numbering: two on the right-hand side of the 3x5 NX grid (camera column 3 sits on the left), the centre column on the compacts
+        "MULTIAF", "AF" -> if (!focusOk) "<AFSTATUS>AFFAIL</AFSTATUS>" else if (CameraModel(profile.model).isNx2012) "<AFSTATUS>1x3,2x3,</AFSTATUS>" else "<AFSTATUS>0x1,1x1,</AFSTATUS>"
         "Shot", "ShotWithGPS" -> {
             val n = shots.incrementAndGet()
             if (action == "ShotWithGPS") gps = arg(body, "GPSINFO")

@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     private val main = Handler(Looper.getMainLooper())
     var session: CameraSession? = null; private set
     @Volatile private var decoder: H264Decoder? = null
+    private val parameterSets = org.mundhenk.finderscope.core.H264ParameterSets()
     private var multicastLock: WifiManager.MulticastLock? = null
     private var info: RvfInfo? = null
     private var model = CameraModel("")
@@ -247,7 +248,8 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             ui { b.liveImage.setImageBitmap(bmp) }
             return
         }
-        val d = decoder ?: b.liveSurface.holder.surface?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second) }?.also { decoder = it } ?: return
+        parameterSets.observe(frame.data) // also while there is no surface yet
+        val d = decoder ?: b.liveSurface.holder.surface?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second, parameterSets) }?.also { decoder = it } ?: return
         d.feed(frame, System.nanoTime() / 1000)
     }
 

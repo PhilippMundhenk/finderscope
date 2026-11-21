@@ -148,6 +148,21 @@ class AviFrameReader(input: InputStream, private val maxFrameBytes: Int = 8 * 10
             return false
         }
 
+        /** NAL units of an Annex B access unit: (type, bytes including the start code). */
+        fun nalUnits(d: ByteArray): List<Pair<Int, ByteArray>> {
+            val starts = ArrayList<Pair<Int, Int>>() // position of the start code, its length
+            var i = 0
+            while (i + 3 <= d.size) {
+                if (d[i].toInt() == 0 && d[i + 1].toInt() == 0 && d[i + 2].toInt() == 1) { starts += i to 3; i += 3 }
+                else if (i + 4 <= d.size && d[i].toInt() == 0 && d[i + 1].toInt() == 0 && d[i + 2].toInt() == 0 && d[i + 3].toInt() == 1) { starts += i to 4; i += 4 }
+                else i++
+            }
+            return starts.mapIndexedNotNull { k, (pos, len) ->
+                val end = if (k + 1 < starts.size) starts[k + 1].first else d.size
+                if (pos + len >= end) null else (d[pos + len].toInt() and 0x1f) to d.copyOfRange(pos, end)
+            }
+        }
+
         /** Builds a stream the way the cameras write it (zero container lengths); used by the simulator and tests. */
         fun header(width: Int, height: Int, codec: VideoCodec): ByteArray {
             val fourCc = if (codec == VideoCodec.MJPEG) "MJPG" else "H264"

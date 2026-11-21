@@ -81,7 +81,7 @@ class AppTest {
     private fun reset() {
         context.getSharedPreferences("finderscope", Context.MODE_PRIVATE).edit().clear().commit()
         LogBus.clear()
-        context.contentResolver.delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?", arrayOf("%${Pictures.FOLDER}%"))
+        context.contentResolver.delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "${MediaStore.Images.Media.RELATIVE_PATH} = ?", arrayOf("Pictures/${Pictures.FOLDER}/"))
         val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
         runCatching { device.executeShellCommand("wm dismiss-keyguard"); device.executeShellCommand("svc power stayon true"); device.wakeUp() }
     }
@@ -135,7 +135,7 @@ class AppTest {
     private fun pictures(): List<String> {
         val names = ArrayList<String>()
         context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
-            "${MediaStore.Images.Media.RELATIVE_PATH} LIKE ?", arrayOf("%${Pictures.FOLDER}%"), null)?.use { c -> while (c.moveToNext()) names += c.getString(0) }
+            "${MediaStore.Images.Media.RELATIVE_PATH} = ?", arrayOf("Pictures/${Pictures.FOLDER}/"), null)?.use { c -> while (c.moveToNext()) names += c.getString(0) }
         return names
     }
 
@@ -414,6 +414,7 @@ class AppTest {
                 setInteger(MediaFormat.KEY_BIT_RATE, 400_000)
                 setInteger(MediaFormat.KEY_FRAME_RATE, 15)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+                setInteger(MediaFormat.KEY_PREPEND_HEADER_TO_SYNC_FRAMES, 1) // SPS/PPS before every key frame, like the cameras
             }
             val enc = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             enc.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)

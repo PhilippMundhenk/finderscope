@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- requestNetwork for the camera network -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <!-- the camera's rotation and goodbye notices arrive as SSDP multicast -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <!-- only when "tag pictures with the phone's location" is switched on -->
