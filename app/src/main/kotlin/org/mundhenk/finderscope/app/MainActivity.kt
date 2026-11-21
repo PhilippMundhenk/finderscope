@@ -27,7 +27,13 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.mundhenk.finderscope.app.databinding.ActivityMainBinding
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import org.mundhenk.finderscope.core.AfCell
+import org.mundhenk.finderscope.core.Box
+import org.mundhenk.finderscope.core.ViewfinderLayout
 import org.mundhenk.finderscope.core.CameraModel
 import org.mundhenk.finderscope.core.CameraSession
 import org.mundhenk.finderscope.core.Notice
@@ -82,12 +88,11 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         supportActionBar?.setDisplayShowTitleEnabled(false) // the start screen shows the name large
         // edge to edge: the picture runs under the system bars, the controls keep clear of them
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        val topPad = b.topBar.paddingTop; val bottomPad = b.controls.paddingBottom
         ViewCompat.setOnApplyWindowInsetsListener(b.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             b.connectPanel.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            b.topBar.setPadding(b.topBar.paddingLeft + 0, topPad + bars.top, b.topBar.paddingRight, b.topBar.paddingBottom)
-            b.controls.setPadding(b.controls.paddingLeft, b.controls.paddingTop, b.controls.paddingRight, bottomPad + bars.bottom)
+            systemInsets = Box(bars.left, bars.top, bars.right, bars.bottom)
+            layoutPicture()
             WindowInsetsCompat.CONSUMED
         }
 
@@ -218,6 +223,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
                 b.topBar.visibility = View.VISIBLE
                 b.controls.visibility = View.VISIBLE
                 b.shutter.isEnabled = false
+                layoutPicture()
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 // like a camera app: the picture alone on the screen, system bars on a swipe
                 WindowCompat.getInsetsController(window, b.root).apply {
@@ -237,7 +243,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         this.info = info
         this.model = model
         b.afOverlay.grid = model.afGrid
-        b.zoomPill.visibility = if (client.canZoom && model.zoomsOverWifi) View.VISIBLE else View.INVISIBLE
+        b.zoomPill.visibility = if (client.canZoom && model.zoomsOverWifi) View.VISIBLE else View.GONE
         b.zoomLevel.text = info.zoom.toString()
         b.flash.visibility = if (client.has("SetFlash") && info.flashModes.isNotEmpty()) View.VISIBLE else View.GONE
         flashIndex = info.flash?.let { info.flashModes.indexOf(it) }?.takeIf { it >= 0 } ?: 0
@@ -246,6 +252,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         info.resolutions.firstOrNull()?.let { (w, h) -> b.size.text = megapixels(w, h) }
         showTimer(0)
         showInfo()
+        layoutPicture()
     }
 
     override fun onStream(codec: VideoCodec, width: Int, height: Int) = ui {
@@ -363,20 +370,79 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         main.postDelayed(hideNotice, NOTICE_MS)
     }
 
-    /** The picture area: the stream's aspect ratio, turned like the camera, as large as fits. */
+    private var systemInsets = Box(0, 0, 0, 0)
+    /** The arrangement currently on screen (for the tests). */
+    var plan: ViewfinderLayout.Plan? = null; private set
+
+    private fun px(dp: Int) = (dp * resources.displayMetrics.density).toInt()
+
+    /**
+     * Where the picture and the controls go for this window ([ViewfinderLayout]): stacked in tall
+     * windows, side by side in wide ones, the controls over the picture only where keeping it
+     * clear would make it too small.
+     */
     private fun layoutPicture() {
+        val w = b.root.width; val h = b.root.height
+        if (w == 0 || h == 0) return
         val (sw, sh) = streamSize.takeIf { it.first > 0 && it.second > 0 } ?: (4 to 3)
         val turned = rotation == Rotation.L || rotation == Rotation.R
-        val (aw, ah) = if (turned) sh to sw else sw to sh
-        val fw = b.finder.width; val fh = b.finder.height
-        if (fw == 0 || fh == 0) return
-        val scale = minOf(fw / aw.toFloat(), fh / ah.toFloat())
-        val dw = (aw * scale).toInt(); val dh = (ah * scale).toInt()
-        val lp = b.picture.layoutParams
-        // the view is laid out unturned and then rotated, so it takes the unturned size
-        lp.width = if (turned) dh else dw; lp.height = if (turned) dw else dh
-        b.picture.layoutParams = lp
+        val aspect = if (turned) sh.toDouble() / sw else sw.toDouble() / sh
+        val zoom = b.zoomPill.visibility == View.VISIBLE
+        val p = ViewfinderLayout.plan(
+            Box(0, 0, w, h), systemInsets, aspect,
+            barStacked = px(BAR_STACKED), barSide = px(BAR_SIDE),
+            controlsStacked = px(if (zoom) CONTROLS_ZOOM else CONTROLS_STACKED), controlsSide = px(if (zoom) CONTROLS_ZOOM else CONTROLS_SIDE),
+            minNotice = px(48),
+        )
+        if (p == plan && b.picture.rotation == rotation.degrees.toFloat()) return
+        plan = p
+        applyPlan(p, turned, zoom)
+    }
+
+    private fun applyPlan(p: ViewfinderLayout.Plan, turned: Boolean, zoom: Boolean) {
+        val side = p.arrangement == ViewfinderLayout.Arrangement.SIDE
+        val ins = systemInsets
+        val match = ViewGroup.LayoutParams.MATCH_PARENT; val wrap = ViewGroup.LayoutParams.WRAP_CONTENT
+        fun at(box: Box) = FrameLayout.LayoutParams(box.width, box.height, Gravity.TOP or Gravity.START).apply { leftMargin = box.left; topMargin = box.top }
+
+        // the picture is laid out unturned and rotated around its centre
+        val pic = p.picture
+        val (lw, lh) = if (turned) pic.height to pic.width else pic.width to pic.height
+        b.picture.layoutParams = FrameLayout.LayoutParams(lw, lh, Gravity.TOP or Gravity.START).apply {
+            leftMargin = pic.left + (pic.width - lw) / 2; topMargin = pic.top + (pic.height - lh) / 2
+        }
         b.picture.rotation = rotation.degrees.toFloat()
+        b.pictureOverlay.layoutParams = at(pic)
+        // notices in free space where there is some, else along the top of the picture
+        b.noticeArea.layoutParams = at(p.noticeSpace ?: Box(pic.left, pic.top, pic.right, pic.top + px(72)))
+
+        // settings: a bar on top, or a column on the left
+        val top = b.topBar
+        top.orientation = if (side) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        top.gravity = if (side) Gravity.CENTER_HORIZONTAL else Gravity.CENTER_VERTICAL
+        top.layoutParams = if (side) FrameLayout.LayoutParams(px(BAR_SIDE) + ins.left, match, Gravity.START)
+            else FrameLayout.LayoutParams(match, px(BAR_STACKED) + ins.top, Gravity.TOP)
+        if (side) top.setPadding(ins.left, ins.top + px(8), 0, ins.bottom + px(8)) else top.setPadding(ins.left + px(8), ins.top, ins.right + px(8), 0)
+        top.background = if (p.overlay) ContextCompat.getDrawable(this, if (side) R.drawable.scrim_start else R.drawable.scrim_top) else null
+        b.info.layoutParams = if (side) LinearLayout.LayoutParams(wrap, 0, 1f) else LinearLayout.LayoutParams(0, wrap, 1f)
+
+        // shutter, last picture, shots left (and zoom): a row at the bottom, or a column on the right
+        val c = b.controls
+        c.orientation = if (side) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        c.layoutParams = if (side) FrameLayout.LayoutParams(px(if (zoom) CONTROLS_ZOOM else CONTROLS_SIDE) + ins.right, match, Gravity.END)
+            else FrameLayout.LayoutParams(match, px(if (zoom) CONTROLS_ZOOM else CONTROLS_STACKED) + ins.bottom, Gravity.BOTTOM)
+        if (side) c.setPadding(0, ins.top + px(12), ins.right, ins.bottom + px(12)) else c.setPadding(ins.left + px(24), 0, ins.right + px(24), ins.bottom + px(8))
+        c.background = if (p.overlay) ContextCompat.getDrawable(this, if (side) R.drawable.scrim_end else R.drawable.scrim_bottom) else null
+        b.shutterRow.orientation = if (side) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        b.shutterRow.layoutParams = if (side) LinearLayout.LayoutParams(px(CONTROLS_SIDE), match) else LinearLayout.LayoutParams(match, wrap)
+        b.zoomPill.orientation = if (side) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+        b.zoomPill.layoutParams = LinearLayout.LayoutParams(wrap, wrap).apply {
+            gravity = Gravity.CENTER
+            if (side) marginStart = px(8) else bottomMargin = px(12)
+        }
+        // tele on top when the pill stands upright, on the right when it lies
+        val order = if (side) listOf(b.zoomIn, b.zoomLevel, b.zoomOut) else listOf(b.zoomOut, b.zoomLevel, b.zoomIn)
+        if ((0 until 3).any { b.zoomPill.getChildAt(it) !== order[it] }) { b.zoomPill.removeAllViews(); order.forEach { b.zoomPill.addView(it) } }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -460,6 +526,12 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     companion object {
         const val ZOOM_REPEAT_MS = 600L
+        // the space the controls take, in dp (ViewfinderLayout plans with these)
+        const val BAR_STACKED = 56
+        const val BAR_SIDE = 72
+        const val CONTROLS_STACKED = 120
+        const val CONTROLS_SIDE = 112
+        const val CONTROLS_ZOOM = 176
         const val NOTICE_MS = 4_000L
     }
 }

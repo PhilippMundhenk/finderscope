@@ -80,6 +80,14 @@ class ScreenshotTest {
                 waitFor { act!!.findViewById<AfOverlayView>(R.id.afOverlay).cells.isNotEmpty() }
                 shot("live")
                 instrumentation.runOnMainSync { shutter.dispatchTouchEvent(MotionEvent.obtain(now, now + 10, MotionEvent.ACTION_UP, shutter.width * 3f, 0f, 0)) }
+                // the same in landscape: controls in columns beside the picture
+                val device = androidx.test.uiautomator.UiDevice.getInstance(instrumentation)
+                try {
+                    device.setOrientationLeft()
+                    waitFor { act!!.plan?.arrangement == org.mundhenk.finderscope.core.ViewfinderLayout.Arrangement.SIDE }
+                    Thread.sleep(1_500)
+                    shot("live-landscape")
+                } finally { device.setOrientationNatural(); device.unfreezeRotation() }
             }
             ActivityScenario.launch(SettingsActivity::class.java).use { shot("settings") }
         } finally {

@@ -266,7 +266,7 @@ class AppTest {
             sc.onActivity { act = it }
             waitFor(what = "decoded frames") { act!!.framesDecoded > 3 }
             sc.onActivity { assertEquals(270f, it.findViewById<View>(R.id.picture).rotation) }
-            onView(withId(R.id.zoomPill)).check(matches(withEffectiveVisibility(Visibility.INVISIBLE))) // lens-ring zoom
+            onView(withId(R.id.zoomPill)).check(matches(withEffectiveVisibility(Visibility.GONE))) // lens-ring zoom
             onView(withId(R.id.size)).check(matches(isDisplayed()))
 
             // focus fails: no picture on an NX, red centre frame
@@ -465,6 +465,48 @@ class AppTest {
             s.sendNotice("ssdp:byebye", group)
             waitForUi { onView(withId(R.id.status)).check(matches(withText("The camera ended the connection"))) }
             onView(withId(R.id.connectPanel)).check(matches(isDisplayed()))
+        }
+    }
+
+    private fun screenBox(v: View): org.mundhenk.finderscope.core.Box {
+        val r = android.graphics.Rect(); v.getGlobalVisibleRect(r)
+        return org.mundhenk.finderscope.core.Box(r.left, r.top, r.right, r.bottom)
+    }
+
+    /** Upright: top bar, picture, controls stacked; turned to landscape: columns beside the picture. Never on top of it. */
+    @Test
+    fun layoutKeepsThePictureClear_uprightAndLandscape() {
+        val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            onView(withId(R.id.demo)).perform(tap())
+            waitForShutter()
+            fun check(expected: org.mundhenk.finderscope.core.ViewfinderLayout.Arrangement) {
+                waitFor(what = "arrangement $expected") {
+                    var ok = false
+                    sc.onActivity { a -> ok = a.plan?.arrangement == expected }
+                    ok
+                }
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                sc.onActivity { a ->
+                    assertTrue(a.plan.toString(), a.plan?.overlay == false)
+                    val picture = screenBox(a.findViewById(R.id.picture))
+                    val top = screenBox(a.findViewById(R.id.topBar))
+                    val controls = screenBox(a.findViewById(R.id.controls))
+                    assertTrue("picture $picture vs top bar $top", !picture.intersects(top))
+                    assertTrue("picture $picture vs controls $controls", !picture.intersects(controls))
+                    assertTrue(picture.width > 0 && picture.height > 0)
+                }
+            }
+            try {
+                device.setOrientationNatural()
+                check(org.mundhenk.finderscope.core.ViewfinderLayout.Arrangement.STACKED)
+                device.setOrientationLeft()
+                check(org.mundhenk.finderscope.core.ViewfinderLayout.Arrangement.SIDE)
+                onView(withId(R.id.shutter)).perform(tap()) // still works in the column
+                waitFor { (DemoCamera.running?.shotCount ?: 0) >= 1 }
+            } finally {
+                device.setOrientationNatural(); device.unfreezeRotation()
+            }
         }
     }
 

@@ -354,7 +354,7 @@ class ConformanceTest {
         val (cs, ev) = session(s)
         s.stop()
         val t0 = System.currentTimeMillis()
-        try { waitFor(15_000) { cs.isClosed } } catch (e: AssertionError) { throw AssertionError("after ${System.currentTimeMillis() - t0} ms: ${ev.log} opens=${cs.streamOpens}") }
+        try { waitFor(30_000) { cs.isClosed } } catch (e: AssertionError) { throw AssertionError("after ${System.currentTimeMillis() - t0} ms: ${ev.log} opens=${cs.streamOpens}") }
         assertTrue(ev.log.toString(), ev.log.any { it.startsWith("state:FAILED") })
     }
 

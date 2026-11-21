@@ -44,17 +44,24 @@
         </FrameLayout>
     </FrameLayout>
 
-    <TextView
-        android:id="@+id/countdown"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:shadowColor="#AA000000"
-        android:shadowRadius="12"
-        android:textColor="@color/finder_fg"
-        android:textSize="120sp"
-        android:textStyle="bold"
-        android:visibility="gone" />
+    <!-- laid over the picture by the code (MainActivity.applyPlan) -->
+    <FrameLayout
+        android:id="@+id/pictureOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp">
+
+        <TextView
+            android:id="@+id/countdown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:shadowColor="#AA000000"
+            android:shadowRadius="12"
+            android:textColor="@color/finder_fg"
+            android:textSize="120sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <!-- live: top bar -->
     <LinearLayout
@@ -62,12 +69,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:background="@drawable/scrim_top"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="8dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="28dp"
         android:visibility="gone">
 
         <ImageButton
@@ -124,14 +128,18 @@
             app:tint="@color/finder_fg" />
     </LinearLayout>
 
-    <!-- live: notices float above the controls -->
+    <!-- live: notices, in free space where there is some (placed by the code) -->
+    <FrameLayout
+        android:id="@+id/noticeArea"
+        android:layout_width="0dp"
+        android:layout_height="0dp">
+
     <TextView
         android:id="@+id/notice"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginHorizontal="24dp"
-        android:layout_marginBottom="220dp"
+        android:layout_gravity="center"
+        android:layout_marginHorizontal="16dp"
         android:background="@drawable/pill"
         android:gravity="center"
         android:paddingHorizontal="16dp"
@@ -139,26 +147,23 @@
         android:textAppearance="?attr/textAppearanceBodyMedium"
         android:textColor="@color/finder_fg"
         android:visibility="gone" />
+    </FrameLayout>
 
-    <!-- live: bottom controls -->
+    <!-- live: the controls (bottom row, or a column on the right in wide windows) -->
     <LinearLayout
         android:id="@+id/controls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="@drawable/scrim_bottom"
+        android:gravity="center"
         android:orientation="vertical"
-        android:paddingHorizontal="28dp"
-        android:paddingTop="56dp"
-        android:paddingBottom="28dp"
         android:visibility="gone">
 
         <LinearLayout
             android:id="@+id/zoomPill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="20dp"
+            android:layout_gravity="center"
             android:background="@drawable/pill"
             android:gravity="center_vertical"
             android:orientation="horizontal"
@@ -192,9 +197,10 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/shutterRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:gravity="center"
             android:orientation="horizontal">
 
             <com.google.android.material.imageview.ShapeableImageView
