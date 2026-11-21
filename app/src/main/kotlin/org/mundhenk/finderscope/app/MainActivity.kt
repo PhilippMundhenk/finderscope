@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             WindowInsetsCompat.CONSUMED
         }
 
-        b.joinWifi.setOnClickListener { joinWifi() }
+        b.joinWifi.setOnClickListener { if (busy) cancelJoin() else joinWifi() }
         b.connect.setOnClickListener { if (session == null) connectToTyped() else stopSession() }
         b.demo.setOnClickListener { startDemo() }
         b.disconnect.setOnClickListener { resumeTarget = null; stopSession() }
@@ -174,15 +174,41 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             askLocationForWifi.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             return
         }
+        b.status.setText(R.string.status_joining)
         b.statusHint.setText(R.string.joining_wifi)
+        joining = true
+        applyBusy()
         wifi.join(known, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }) { network ->
             runOnUiThread {
-                if (network == null) { b.statusHint.setText(R.string.wifi_unavailable); return@runOnUiThread }
+                if (!joining) return@runOnUiThread // cancelled meanwhile
+                joining = false
+                if (network == null) { b.status.setText(R.string.status_idle); b.statusHint.setText(R.string.wifi_unavailable); applyBusy(); return@runOnUiThread }
                 val gw = wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA
                 b.address.setText(gw)
                 connect(gw, 7676)
             }
         }
+    }
+
+    /** Joining the camera network, or connecting to the camera: only Cancel works meanwhile. */
+    private var joining = false
+    private var connecting = false
+    internal val busy: Boolean get() = joining || connecting
+
+    /** While busy the join button is Cancel and nothing else on the start screen can be pressed twice. */
+    private fun applyBusy() {
+        val on = busy
+        if (on) b.joinWifi.setText(R.string.cancel) else showKnownCamera()
+        for (v in listOf(b.otherCamera, b.addressToggle, b.address, b.demo)) v.isEnabled = !on
+        b.connect.isEnabled = !joining
+    }
+
+    private fun cancelJoin() {
+        joining = false
+        resumeTarget = null
+        stopSession()
+        wifi.release()
+        showIdle(getString(R.string.status_idle), getString(R.string.howto))
     }
 
     /** How long to wait for a camera that is not answering yet (tests shorten it). */
@@ -197,6 +223,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     /** "Connect to NX1000" when a camera network is remembered, with "Other camera" under it. */
     private fun showKnownCamera() {
+        if (busy) return
         val known = knownCamera
         if (known == null) { b.joinWifi.setText(R.string.join_wifi); b.otherCamera.visibility = View.GONE; return }
         b.joinWifi.text = getString(R.string.join_known, CameraModel.parse(known.first).name)
@@ -394,6 +421,8 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b.status.text = status
         b.statusHint.text = if (hint == getString(R.string.howto)) getText(R.string.howto) else hint
         b.connect.setText(if (connecting) R.string.cancel else R.string.connect)
+        this.connecting = connecting
+        applyBusy()
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 

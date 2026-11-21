@@ -13,6 +13,7 @@
     <string name="join_known">Connect to %1$s</string>
     <string name="other_camera">Other camera</string>
     <string name="location_for_wifi">To remember your camera\'s network, so the next connection needs no confirmation, Android needs the location permission. finderscope uses it only for that, and for GPS tags if you switch them on.</string>
+    <string name="status_joining">Joining the camera Wi-Fi…</string>
     <string name="status_waiting">Waiting for the camera…</string>
     <string name="status_waiting_hint">The camera needs a few seconds after the phone joined its Wi-Fi. finderscope keeps looking for up to a minute.</string>
     <string name="joining_wifi">Waiting for the camera network…</string>

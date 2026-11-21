@@ -317,6 +317,7 @@ class ConformanceTest {
         assertFalse(ev.log.toString(), ev.log.any { it.contains("stalled") })
         cs.tap() // the next picture works on the same connection
         waitFor(what = "second picture", timeoutMs = 10_000) { ev.pictures.size == 2 }
+        assertEquals(emptyList<String>(), s.violations.toList())
     }
 
     /** A stream that stays silent after reopening is dropped less and less often, and the log says how much came. */
@@ -333,6 +334,19 @@ class ConformanceTest {
         assertTrue(ev.log.toString(), ev.log.any { it.contains("bytes on this connection") })
         s.stallStream = false
         waitFor { ev.has("notice:RECONNECTED") }
+        assertFalse(cs.isClosed)
+    }
+
+    /** A camera that never sends again is not asked over and over: after a few silent reopens the session ends. */
+    @Test
+    fun silentCameraIsLeftAlone() {
+        val s = camera()
+        val (cs, ev) = session(s, stallMs = 200)
+        waitFor { cs.frames.get() > 0 }
+        s.stallStream = true
+        waitFor(what = "session ends", timeoutMs = 15_000) { cs.isClosed }
+        assertTrue(ev.log.toString(), ev.has("state:CLOSED:" + CameraSession.STOPPED_SENDING))
+        assertTrue("opens " + s.streamOpens.get(), s.streamOpens.get() <= 5)
     }
 
     /** 20 + 23: SSDP notices: rotation turns the view, a goodbye ends the session; other cameras' notices are ignored. */

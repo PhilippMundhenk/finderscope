@@ -311,6 +311,8 @@ class RvfCameraSimulator(
                 return
             }
             streamOpens.incrementAndGet()
+            // suspected to hang a real NX1000: a new live view while it is still showing the picture
+            if (System.currentTimeMillis() < pausedUntil) violations += "live stream opened while the camera shows the picture"
             try {
                 val out = s.getOutputStream()
                 out.write("HTTP/1.1 206 Partial Content\r\nContent-Type: video/avi\r\nConnection: close\r\n\r\n".toByteArray())

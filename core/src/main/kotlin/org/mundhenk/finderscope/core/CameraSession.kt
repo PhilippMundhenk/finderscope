@@ -54,7 +54,9 @@ class CameraSession(
     private val stallMs: Long = 5_000,
     private val reopenTimeoutMs: Long = 60_000,
     /** After a picture the NX1000 keeps the stream open but silent while it shows the picture: no stall for this long. */
-    private val afterShotQuietMs: Long = 20_000,
+    private val afterShotQuietMs: Long = 30_000,
+    /** Stalls in a row (no frame at all in between) before the session ends instead of asking the camera again. */
+    private val maxStallsInRow: Int = 4,
     private val modePort: Int = RvfClient.MODE_PORT,
     private val log: (String) -> Unit = {},
     /** Finds the camera by SSDP for up to the given time (null: not available); see [SsdpSearch]. */
@@ -67,6 +69,7 @@ class CameraSession(
     companion object {
         /** [Listener.onState] message while the camera does not answer yet. */
         const val WAITING = "waiting for the camera"
+        const val STOPPED_SENDING = "The camera stopped sending its live view. Switch Remote Viewfinder off and on again on the camera."
     }
 
     /** What the user can set on the shutter side. */
@@ -226,7 +229,7 @@ class CameraSession(
         val deadline = System.currentTimeMillis() + reopenTimeoutMs
         var last: Exception? = null
         while (!closed.get() && System.currentTimeMillis() < deadline) {
-            try { return open(c) } catch (e: Exception) { last = e; Thread.sleep(500) }
+            try { return open(c) } catch (e: Exception) { last = e; Thread.sleep(1_000) }
         }
         if (!closed.get()) fail("The live view did not come back${last?.message?.let { " ($it)" } ?: ""}")
         return null
@@ -257,7 +260,12 @@ class CameraSession(
         val limit = stallMs * (1 + minOf(stallsInRow.get(), 5))
         val silent = now - maxOf(lastFrameAt.get(), quietUntil)
         if (silent > limit) {
-            stallsInRow.incrementAndGet()
+            if (stallsInRow.incrementAndGet() > maxStallsInRow) {
+                // the camera is not sending; asking it again and again can hang it (seen on an NX1000)
+                log("live view silent ${stallsInRow.get() - 1} times in a row, giving up")
+                Thread { end(STOPPED_SENDING) }.start()
+                return
+            }
             log("live view stalled: no picture for ${silent / 1000} s (${reader?.bytesRead ?: 0} bytes on this connection), opening it again")
             lastFrameAt.set(now)
             runCatching { stream?.close() }

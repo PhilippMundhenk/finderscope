@@ -8,8 +8,9 @@
 2. In finderscope: **Join camera Wi-Fi**. Android lists the camera networks nearby; pick yours.
    Android connects the phone to it for finderscope only: other apps keep using mobile data, and
    nothing in your saved Wi-Fi networks changes.
-3. The first time, the camera asks whether to allow this phone. Confirm on the camera. It
-   remembers the phone afterwards.
+3. The camera asks whether to allow this phone. Confirm on the camera. The NX1000 (and probably
+   the other 2012 models) asks again every time Remote Viewfinder is started; the original app
+   showed a "confirm on the camera" message for every connection too.
 
 Right after the camera opens its network, its viewfinder service is often not up yet. finderscope
 shows *Waiting for the camera…* and keeps trying (and searches for the camera by SSDP) for up to a

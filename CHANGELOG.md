@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- While joining the camera Wi-Fi or connecting, the join button is **Cancel** and the other
+  start-screen buttons are disabled, so a slow join cannot be started twice.
+
+### Fixed
+- After the first picture a real NX1000 showed a spinner and hung until the battery was pulled.
+  The likely cause is finderscope's live-view reopens while the camera was still showing the
+  picture. finderscope now leaves the stream alone for 30 s after a picture, and after four
+  silent reopens in a row it ends the session with a message instead of asking the camera again.
+- The end of a session that was already replaced no longer shows the start screen over the new one.
+
 ## [0.1.2] - 2026-11-21
 
 ### Added

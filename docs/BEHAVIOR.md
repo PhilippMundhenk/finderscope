@@ -62,7 +62,13 @@ conformance scenarios the tests check. The wire protocol itself is in [PROTOCOL.
 * On a real NX1000 the live-view connection is not ended by the shot: it stays open and sends
   nothing for a few seconds while the camera shows the picture, then goes on. Connections opened
   during that pause got nothing either. finderscope keeps the connection, treats up to 20 s of
-  silence after a picture as normal, and brings the shutter back with the first new frame.
+  silence after a picture as normal (30 s), and brings the shutter back with the first new frame.
+* In a field test (0.1.1, which reopened the stream every few seconds during that pause) the
+  NX1000 showed a spinner after the first picture and hung until the battery was removed. The
+  simulator now reports a stream opened during the pause as a violation, and finderscope gives
+  up after four silent reopens in a row instead of asking again.
+* The camera asks the user to allow the phone at every start of Remote Viewfinder; it keeps the
+  "allowed" state only while the mode runs.
 * Remaining shots 0 = card full, -1 = folder / file numbering exhausted.
 
 ## Rotation (original)

@@ -538,6 +538,26 @@ class AppTest {
         }
     }
 
+    /** While joining only Cancel works; a late answer after Cancel changes nothing. */
+    @Test
+    fun joiningDisablesTheStartScreen() {
+        ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            var pending: android.net.ConnectivityManager.NetworkCallback? = null
+            sc.onActivity { a -> a.wifi.requester = { _, cb -> pending = cb } }
+            onView(withId(R.id.joinWifi)).perform(tap())
+            onView(withId(R.id.joinWifi)).check(matches(withText(R.string.cancel)))
+            onView(withId(R.id.status)).check(matches(withText(R.string.status_joining)))
+            onView(withId(R.id.demo)).check(matches(org.hamcrest.Matchers.not(isEnabled())))
+            sc.onActivity { assertTrue(it.busy) }
+            onView(withId(R.id.joinWifi)).perform(tap()) // Cancel
+            sc.onActivity { assertTrue(!it.busy) }
+            onView(withId(R.id.demo)).check(matches(isEnabled()))
+            onView(withId(R.id.status)).check(matches(withText(R.string.status_idle)))
+            sc.onActivity { pending!!.onUnavailable() } // too late: ignored
+            onView(withId(R.id.statusHint)).check(matches(org.hamcrest.Matchers.not(withText(R.string.wifi_unavailable))))
+        }
+    }
+
     /** Nobody answers yet: "Waiting for the camera", and Cancel ends the attempt. */
     @Test
     fun waitingForTheCamera() {
