@@ -345,6 +345,16 @@
                     app:iconTint="@color/finder_fg" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/wifiSettings"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/wifi_settings"
+                    android:textColor="@color/accent"
+                    android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/otherCamera"
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"

@@ -17,7 +17,9 @@
     <string name="status_waiting">Waiting for the camera…</string>
     <string name="status_waiting_hint">The camera is ready about 5 seconds after it shows its Cancel button. finderscope keeps looking for up to a minute.</string>
     <string name="joining_wifi">Waiting for the camera network…</string>
-    <string name="wifi_unavailable">The camera network was not found or not accepted. Is Remote Viewfinder on? You can also join it in the phone\'s Wi-Fi settings and tap Connect.</string>
+    <string name="wifi_unavailable">The camera network was not found or not accepted. Is Remote Viewfinder on? If Android does not list it, join it in the phone\'s Wi-Fi settings: finderscope connects when you come back.</string>
+    <string name="wifi_settings">Join in Wi-Fi settings</string>
+    <string name="not_on_camera_wifi">The phone is not on a camera network. Pick the camera\'s network (AP_SSC_…) in the Wi-Fi settings.</string>
     <string name="connect">Connect</string>
     <string name="cancel">Cancel</string>
     <string name="demo">Try the demo</string>

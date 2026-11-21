@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Android's network picker could keep searching without ever listing the camera network
+  (field test with 0.1.8). finderscope now looks into the phone's own Wi-Fi scan first and asks
+  for a camera network seen there by name, and logs what the scan contains. When Android gives
+  up, **Join in Wi-Fi settings** opens the phone's Wi-Fi panel; back in finderscope it connects
+  on its own if the phone is on a camera network.
+
 ## [0.1.8] - 2026-11-21
 
 ### Changed

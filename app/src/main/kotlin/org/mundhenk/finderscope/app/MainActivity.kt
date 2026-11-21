@@ -107,6 +107,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b.settingsButton.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         b.addressToggle.setOnClickListener { showAddress() }
         b.otherCamera.setOnClickListener { joinWifi(other = true) }
+        b.wifiSettings.setOnClickListener { openWifiSettings() }
         b.lastPicture.setOnClickListener { openLastPicture() }
         b.flash.setOnClickListener { cycleFlash() }
         b.timer.setOnClickListener { cycleTimer() }
@@ -136,6 +137,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         super.onStart()
         main.removeCallbacks(endWhileAway)
         if (session != null) decoder?.resync()
+        if (fromWifiSettings) backFromWifiSettings()
         if (b.address.text.isNullOrBlank()) b.address.setText(prefs.address.ifBlank { wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA })
         if (prefs.address.isNotBlank()) showAddress()
         showKnownCamera()
@@ -198,7 +200,11 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             runOnUiThread {
                 if (!joining) return@runOnUiThread // cancelled meanwhile
                 joining = false
-                if (network == null) { b.status.setText(R.string.status_idle); b.statusHint.setText(R.string.wifi_unavailable); applyBusy(); return@runOnUiThread }
+                if (network == null) {
+                    b.status.setText(R.string.status_idle); b.statusHint.setText(R.string.wifi_unavailable)
+                    b.wifiSettings.visibility = View.VISIBLE
+                    applyBusy(); return@runOnUiThread
+                }
                 val gw = wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA
                 b.address.setText(gw)
                 connect(gw, 7676)
@@ -215,8 +221,26 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     private fun applyBusy() {
         val on = busy
         if (on) b.joinWifi.setText(R.string.cancel) else showKnownCamera()
-        for (v in listOf(b.otherCamera, b.addressToggle, b.address, b.demo)) v.isEnabled = !on
+        for (v in listOf(b.otherCamera, b.addressToggle, b.address, b.demo, b.wifiSettings)) v.isEnabled = !on
         b.connect.isEnabled = !joining
+    }
+
+    /** Back from the Wi-Fi settings: connect if the phone is now on a camera network. */
+    private var fromWifiSettings = false
+
+    private fun openWifiSettings() {
+        fromWifiSettings = true
+        startActivity(Intent(android.provider.Settings.Panel.ACTION_WIFI))
+    }
+
+    private fun backFromWifiSettings() {
+        fromWifiSettings = false
+        if (session != null) return
+        val ssid = wifi.currentSsid()
+        if (ssid != null && !CameraWifi.isCameraNetwork(ssid)) { b.statusHint.setText(R.string.not_on_camera_wifi); return }
+        b.wifiSettings.visibility = View.GONE
+        LogBus.log("back from the Wi-Fi settings on ${ssid ?: "an unknown network"}: connecting")
+        connect(wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA, 7676)
     }
 
     private fun cancelJoin() {

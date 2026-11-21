@@ -23,6 +23,11 @@ once for the location permission, which Android requires to read a Wi-Fi network
 button then reads **Connect to <model>** and asks Android for exactly that network, which Android
 approves without its dialog after the first time. **Other camera** shows the list again.
 
+If Android's list stays empty although the camera shows its network, finderscope offers **Join
+in Wi-Fi settings** after the list is closed: pick the camera's network there and come back,
+finderscope connects by itself. (It also looks into the phone's own Wi-Fi scan first and asks for
+a camera network it sees there by name; the Log says what the scan contained.)
+
 Already on the camera's Wi-Fi (joined in the phone's settings)? Tap **Connect**: the camera
 address is filled in from the Wi-Fi (usually `192.168.102.1`). Change it only if your camera
 uses another one.

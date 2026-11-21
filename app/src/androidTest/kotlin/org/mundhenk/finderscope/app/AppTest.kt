@@ -568,6 +568,49 @@ class AppTest {
         }
     }
 
+    /**
+     * The phone's own Wi-Fi scan decides: a camera network seen there is asked for by name;
+     * without one the picker gets the pattern. When Android gives up, the Wi-Fi settings are offered.
+     */
+    @Test
+    fun joinUsesThePhonesScan_andOffersWifiSettings() {
+        assertTrue(CameraWifi.isCameraNetwork("AP_SSC_NX1000_0-AA:BB:CC"))
+        assertTrue(CameraWifi.isCameraNetwork("[Camera]AP_SSC_WB250F_0-AA:BB:CC"))
+        assertTrue(CameraWifi.isCameraNetwork("\"WB150F_0-AA:BB:CC\""))
+        assertTrue(!CameraWifi.isCameraNetwork("AndroidWifi")); assertTrue(!CameraWifi.isCameraNetwork("my_home_net"))
+        Intents.init()
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use { sc ->
+                val requests = CopyOnWriteArrayList<String>()
+                sc.onActivity { a ->
+                    a.findTimeoutMs = 2_000
+                    a.wifi.requester = { r, cb -> requests += r.toString(); cb.onUnavailable() }
+                    a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L), Triple("AP_SSC_NX1000_0-AA:BB:CC", "02:11:22:33:44:55", 3L)) }
+                }
+                onView(withId(R.id.joinWifi)).perform(tap())
+                waitForUi { onView(withId(R.id.wifiSettings)).check(matches(isDisplayed())) }
+                assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
+                assertTrue(LogBus.snapshot().toString(), LogBus.snapshot().any { it.contains("camera network NX1000 seen 3 s ago") })
+                // nothing in the scan: the picker gets the pattern
+                sc.onActivity { a -> a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L)) } }
+                onView(withId(R.id.joinWifi)).perform(tap())
+                waitFor { requests.size == 2 }
+                assertTrue(requests.toString(), !requests.last().contains("AP_SSC_NX1000"))
+                assertTrue(LogBus.snapshot().any { it.contains("no camera network among them") })
+                // the Wi-Fi settings, and back: not on a camera network (the emulator's own Wi-Fi), or connecting
+                intending(hasAction(android.provider.Settings.Panel.ACTION_WIFI)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+                onView(withId(R.id.wifiSettings)).perform(tap())
+                intended(hasAction(android.provider.Settings.Panel.ACTION_WIFI))
+                sc.moveToState(Lifecycle.State.CREATED)
+                sc.moveToState(Lifecycle.State.RESUMED)
+                waitFor(what = "after the Wi-Fi settings") {
+                    LogBus.snapshot().any { it.contains("back from the Wi-Fi settings") } ||
+                        runCatching { onView(withId(R.id.statusHint)).check(matches(withText(R.string.not_on_camera_wifi))) }.isSuccess
+                }
+            }
+        } finally { Intents.release() }
+    }
+
     /** While joining only Cancel works; a late answer after Cancel changes nothing. */
     @Test
     fun joiningDisablesTheStartScreen() {

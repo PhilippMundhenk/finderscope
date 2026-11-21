@@ -12,6 +12,7 @@ import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.PatternMatcher
+import org.mundhenk.finderscope.core.CameraModel
 import java.net.DatagramSocket
 import java.net.Inet4Address
 import javax.net.SocketFactory
@@ -42,10 +43,15 @@ class CameraWifi(private val context: Context) {
      */
     fun join(known: Pair<String, String?>? = null, onIdentified: (String, String?) -> Unit = { _, _ -> }, onResult: (Network?) -> Unit) {
         release()
+        // Android's picker only lists what its own scan finds, and that sometimes stays empty
+        // (field test: camera network up, picker searching forever). The phone's last scan
+        // tells whether it sees the camera at all, and a camera seen there is asked for by name.
+        val seen = if (known == null) cameraInScan() else null
+        val target = known ?: seen
         val builder = WifiNetworkSpecifier.Builder()
-        if (known != null) {
-            builder.setSsid(known.first)
-            known.second?.let { runCatching { builder.setBssid(MacAddress.fromString(it)) } }
+        if (target != null) {
+            builder.setSsid(target.first)
+            target.second?.let { runCatching { builder.setBssid(MacAddress.fromString(it)) } }
         } else builder.setSsidPattern(PatternMatcher(".*_.*", PatternMatcher.PATTERN_SIMPLE_GLOB))
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -75,6 +81,32 @@ class CameraWifi(private val context: Context) {
     }
 
     private enum class Event { AVAILABLE, CAPABILITIES, UNAVAILABLE, LOST }
+
+    /** The phone's scan results (tests set them; null = ask Android). */
+    var scanResults: (() -> List<Triple<String, String, Long>>)? = null
+
+    /**
+     * A camera network in the phone's latest Wi-Fi scan (name, hardware address), the strongest
+     * if there are several; null if the scan has none or cannot be read (no location permission).
+     * Also asks for a fresh scan and logs what was found.
+     */
+    @Suppress("DEPRECATION")
+    private fun cameraInScan(): Pair<String, String?>? {
+        val wm = context.getSystemService(WifiManager::class.java)
+        val results = scanResults?.invoke() ?: runCatching {
+            runCatching { wm?.startScan() }
+            val now = android.os.SystemClock.elapsedRealtime()
+            // (name, hardware address, age in seconds); strongest first
+            wm?.scanResults.orEmpty().sortedByDescending { it.level }.map { Triple(it.SSID.orEmpty(), it.BSSID.orEmpty(), (now - it.timestamp / 1000) / 1000) }
+        }.getOrElse { LogBus.log("Wi-Fi scan not readable: $it"); emptyList() }
+        val cameras = results.filter { isCameraNetwork(it.first) }
+        if (cameras.isEmpty()) {
+            LogBus.log("Wi-Fi scan: ${results.size} networks, no camera network among them${results.minOfOrNull { it.third }?.let { " (newest $it s old)" } ?: ""}")
+            return null
+        }
+        LogBus.log("Wi-Fi scan: camera network ${CameraModel.parse(cameras.first().first).name} seen ${cameras.first().third} s ago")
+        return cameras.first().first to cameras.first().second.ifEmpty { null }
+    }
 
     /** A network callback that, from Android 12 on, also gets the network's name (with the location permission). */
     private fun callback(on: (Event, Network?, NetworkCapabilities?) -> Unit): ConnectivityManager.NetworkCallback =
@@ -115,6 +147,11 @@ class CameraWifi(private val context: Context) {
         return cameraNetwork()?.socketFactory ?: SocketFactory.getDefault()
     }
 
+    /** The name of the Wi-Fi the phone is on (needs the location permission); null when unknown. */
+    @Suppress("DEPRECATION")
+    fun currentSsid(): String? = runCatching { context.getSystemService(WifiManager::class.java)?.connectionInfo?.ssid?.trim('"') }.getOrNull()
+        ?.takeIf { it.isNotEmpty() && it != WifiManager.UNKNOWN_SSID && it != WifiManager.UNKNOWN_SSID.trim('<', '>') }
+
     /** Puts a datagram socket (SSDP notices) on the camera network, where there is one. */
     fun bind(socket: DatagramSocket, host: String): DatagramSocket {
         if (!(host == "localhost" || host.startsWith("127."))) cameraNetwork()?.let { runCatching { it.bindSocket(socket) } }
@@ -123,6 +160,10 @@ class CameraWifi(private val context: Context) {
 
     companion object {
         const val DEFAULT_CAMERA = "192.168.102.1"
+
+        /** `AP_SSC_<model>_...` (2013+ firmware) or `<model>_...` (2012), optionally with a `[Camera]` prefix. */
+        fun isCameraNetwork(ssid: String): Boolean =
+            Regex("""^(\[Camera])?(AP_SSC_[A-Z0-9]+_|(NX|WB|ST|DV|EX|MV)[A-Z0-9]*_)""").containsMatchIn(ssid.trim('"'))
 
         /** "192.168.102.1" or "192.168.102.1:7676" -> host and port. */
         fun parse(address: String): Pair<String, Int>? {
