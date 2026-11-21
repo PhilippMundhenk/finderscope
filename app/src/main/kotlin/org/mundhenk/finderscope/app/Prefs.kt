@@ -24,6 +24,15 @@ class Prefs(context: Context) {
         get() = sp.getString("address", "") ?: ""
         set(v) = sp.edit().putString("address", v.trim()).apply()
 
+    /** The camera network joined last (name and hardware address): asked for directly next time, which Android approves without a dialog. */
+    var cameraSsid: String
+        get() = sp.getString("cameraSsid", "") ?: ""
+        set(v) = sp.edit().putString("cameraSsid", v).apply()
+
+    var cameraBssid: String
+        get() = sp.getString("cameraBssid", "") ?: ""
+        set(v) = sp.edit().putString("cameraBssid", v).apply()
+
     var savePictures: Boolean
         get() = sp.getBoolean("savePictures", true)
         set(v) = sp.edit().putBoolean("savePictures", v).apply()

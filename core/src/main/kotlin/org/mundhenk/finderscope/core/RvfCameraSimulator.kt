@@ -39,6 +39,8 @@ class RvfCameraSimulator(
     streamPort: Int = 0,
     /** The user's answer on the camera's "allow this device?" prompt. */
     var allow: (String) -> Boolean = { true },
+    /** The control server comes up this long after start() (the real cameras need a moment after the phone joined). */
+    private val startDelayMs: Long = 0,
     private val log: (String) -> Unit = {},
 ) {
     enum class Profile(
@@ -133,9 +135,26 @@ class RvfCameraSimulator(
     /** The /mode/control port, -1 for models without one. */
     val modePort: Int get() = modeSocket?.localPort ?: -1
 
+    private var ssdpSocket: java.net.DatagramSocket? = null
+    /** Port of the SSDP responder: answers M-SEARCH with the description's LOCATION. */
+    val ssdpPort: Int get() = ssdpSocket?.localPort ?: -1
+
     fun start(): RvfCameraSimulator {
         if (running.getAndSet(true)) return this
-        control.start()
+        if (startDelayMs > 0) pool.execute { Thread.sleep(startDelayMs); if (running.get()) control.start() } else control.start()
+        val ssdp = java.net.DatagramSocket(0); ssdpSocket = ssdp
+        pool.execute {
+            val buf = ByteArray(2048)
+            while (running.get()) {
+                val p = java.net.DatagramPacket(buf, buf.size)
+                try { ssdp.receive(p) } catch (e: IOException) { break }
+                if (!String(p.data, 0, p.length, Charsets.ISO_8859_1).startsWith("M-SEARCH")) continue
+                if (control.boundPort <= 0 || !control.isRunning) continue // not up yet: the cameras do not answer either
+                val answer = listOf("HTTP/1.1 200 OK", "CACHE-CONTROL: max-age=1800", "LOCATION: http://$advertisedHost:${control.boundPort}/smp_2_",
+                    "ST: ${Upnp.MEDIA_SERVER_TYPE}", "USN: $udn::${Upnp.MEDIA_SERVER_TYPE}", "", "").joinToString("\r\n").toByteArray(Charsets.ISO_8859_1)
+                runCatching { ssdp.send(java.net.DatagramPacket(answer, answer.size, p.socketAddress)) }
+            }
+        }
         val ss = ServerSocket(); ss.reuseAddress = true; ss.bind(InetSocketAddress(wantedStreamPort)); streamSocket = ss
         pool.execute {
             while (running.get()) {
@@ -164,6 +183,7 @@ class RvfCameraSimulator(
         control.stop()
         runCatching { streamSocket?.close() }
         runCatching { modeSocket?.close() }
+        runCatching { ssdpSocket?.close() }
         endStreams()
         pool.shutdownNow()
     }

@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Remembers the camera network: next time **Connect to <model>** asks Android for exactly that
+  network, which Android approves without its dialog; **Other camera** for a different one. Needs
+  the location permission once (Android only tells apps a Wi-Fi name with it).
+
+### Fixed
+- Connecting right after joining the camera network failed with "connection refused" because the
+  camera's viewfinder service starts a few seconds after its Wi-Fi. finderscope now waits for it
+  (*Waiting for the camera…*), retrying and searching by SSDP for up to a minute.
+
 ## [0.1.1] - 2026-11-21
 
 ### Changed

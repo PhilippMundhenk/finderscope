@@ -60,6 +60,7 @@ class HttpServer(
     private val pool = Executors.newCachedThreadPool { r -> Thread(r, THREAD_NAME).apply { isDaemon = true } }
 
     val boundPort: Int get() = serverSocket?.localPort ?: port
+    val isRunning: Boolean get() = running.get()
 
     fun start() {
         if (running.getAndSet(true)) return

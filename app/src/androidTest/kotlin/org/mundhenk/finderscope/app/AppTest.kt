@@ -61,6 +61,7 @@ import org.mundhenk.finderscope.core.SsdpNotices
 import java.net.InetSocketAddress
 import org.mundhenk.finderscope.core.VideoCodec
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * finderscope end to end on a device: the real UI against the simulated camera on the loopback
@@ -507,6 +508,48 @@ class AppTest {
             } finally {
                 device.setOrientationNatural(); device.unfreezeRotation()
             }
+        }
+    }
+
+    /**
+     * The camera network is remembered: next time it is asked for by name (Android approves that
+     * without its dialog), "Other camera" asks for any camera network again.
+     */
+    @Test
+    fun rememberedCameraNetwork() {
+        context.getSharedPreferences("finderscope", Context.MODE_PRIVATE).edit()
+            .putString("cameraSsid", "AP_SSC_NX1000_0-AA:BB:CC").putString("cameraBssid", "02:11:22:33:44:55").commit()
+        ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            onView(withId(R.id.joinWifi)).check(matches(withText(context.getString(R.string.join_known, "NX1000"))))
+            onView(withId(R.id.otherCamera)).check(matches(isDisplayed()))
+            val requests = CopyOnWriteArrayList<String>()
+            sc.onActivity { a -> a.wifi.requester = { r, cb -> requests += r.toString(); cb.onUnavailable() } }
+            onView(withId(R.id.joinWifi)).perform(tap())
+            waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_unavailable))) }
+            assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
+            onView(withId(R.id.otherCamera)).perform(tap())
+            waitFor { requests.size == 2 }
+            assertTrue(requests.toString(), !requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
+            // a newly joined camera replaces the remembered one
+            sc.onActivity { it.rememberCamera("AP_SSC_WB250F_0-DD:EE:FF", null) }
+            onView(withId(R.id.joinWifi)).check(matches(withText(context.getString(R.string.join_known, "WB250F"))))
+            assertEquals("AP_SSC_WB250F_0-DD:EE:FF", Prefs(context).cameraSsid)
+            sc.onActivity { it.rememberCamera("AP_SSC_WB250F_0-DD:EE:FF", null) } // same again: nothing changes
+        }
+    }
+
+    /** Nobody answers yet: "Waiting for the camera", and Cancel ends the attempt. */
+    @Test
+    fun waitingForTheCamera() {
+        val port = java.net.ServerSocket(0).use { it.localPort }
+        ActivityScenario.launch(MainActivity::class.java).use {
+            openAddress()
+            onView(withId(R.id.address)).perform(replaceText("127.0.0.1:$port"))
+            onView(withId(R.id.connect)).perform(tap())
+            waitForUi { onView(withId(R.id.status)).check(matches(withText(R.string.status_waiting))) }
+            onView(withId(R.id.connect)).check(matches(withText(R.string.cancel)))
+            onView(withId(R.id.connect)).perform(tap())
+            waitForUi { onView(withId(R.id.status)).check(matches(withText(R.string.closed))) }
         }
     }
 

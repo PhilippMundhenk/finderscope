@@ -65,6 +65,8 @@ class RvfClient(
     private val modePort: Int = MODE_PORT,
     /** Shot can take long (exposure, writing the card): its own read timeout. */
     private val shotTimeoutMs: Int = 90_000,
+    /** The device description, as SSDP announced it (the cameras: /smp_2_). */
+    private val descriptionPath: String = "/smp_2_",
 ) {
     private val lock = Any()
     private var userAgent = "$UA_PREFIX$clientId"
@@ -226,13 +228,13 @@ class RvfClient(
 
     /** GET of the description; this is the request that pairs. 401 = not (yet) allowed, 503 = another phone. */
     private fun describe(): String {
-        val first = runCatching { getPaired("/smp_2_") }
+        val first = runCatching { getPaired(descriptionPath) }
         val e = first.exceptionOrNull() ?: return first.getOrThrow()
         if (e !is RvfException || e.status != 401 || userAgent.startsWith(UA_PREFIX_ML)) throw friendly(e)
         // newer models (NX3000, NX mini) that did not say so on /mode/control: try their prefix once
         log("Camera refused $userAgent, trying the newer pairing")
         userAgent = "$UA_PREFIX_ML$clientId"
-        return try { getPaired("/smp_2_") } catch (e2: IOException) { throw friendly(e2) }
+        return try { getPaired(descriptionPath) } catch (e2: IOException) { throw friendly(e2) }
     }
 
     private fun friendly(e: Throwable): Throwable = when ((e as? RvfException)?.status) {

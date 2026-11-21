@@ -19,6 +19,7 @@ import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -34,6 +35,8 @@ import android.widget.LinearLayout
 import com.google.android.material.button.MaterialButton
 import org.mundhenk.finderscope.core.AfCell
 import org.mundhenk.finderscope.core.Box
+import org.mundhenk.finderscope.core.CameraLocation
+import org.mundhenk.finderscope.core.SsdpSearch
 import org.mundhenk.finderscope.core.ViewfinderLayout
 import org.mundhenk.finderscope.core.CameraModel
 import org.mundhenk.finderscope.core.CameraSession
@@ -103,6 +106,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b.disconnect.setOnClickListener { resumeTarget = null; stopSession() }
         b.settingsButton.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
         b.addressToggle.setOnClickListener { showAddress() }
+        b.otherCamera.setOnClickListener { joinWifi(other = true) }
         b.lastPicture.setOnClickListener { openLastPicture() }
         b.flash.setOnClickListener { cycleFlash() }
         b.timer.setOnClickListener { cycleTimer() }
@@ -126,6 +130,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         super.onStart()
         if (b.address.text.isNullOrBlank()) b.address.setText(prefs.address.ifBlank { wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA })
         if (prefs.address.isNotBlank()) showAddress()
+        showKnownCamera()
         // back on screen: pick up the session where it was (the camera was released while away)
         val t = resumeTarget
         if (session == null && t != null) { if (demo) startDemo() else connect(t.first, t.second) }
@@ -151,9 +156,26 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     // ---- connecting ----------------------------------------------------------------------
 
-    private fun joinWifi() {
+    /** The camera network joined before, if Android told us which it was. */
+    private val knownCamera: Pair<String, String?>?
+        get() = prefs.cameraSsid.takeIf { it.isNotBlank() }?.let { it to prefs.cameraBssid.ifBlank { null } }
+
+    /** Android tells the joined network's name only with the location permission: asked once, before the first join. */
+    private val askLocationForWifi = registerForActivityResult(ActivityResultContracts.RequestPermission()) { joinWifi(other = true, asked = true) }
+
+    /**
+     * Joins the camera network: the one remembered from last time directly (Android does not ask
+     * again), or, for [other] or the first time, from the system's list of camera networks.
+     */
+    private fun joinWifi(other: Boolean = false, asked: Boolean = false) {
+        val known = if (other) null else knownCamera
+        if (known == null && !asked && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            b.statusHint.setText(R.string.location_for_wifi)
+            askLocationForWifi.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            return
+        }
         b.statusHint.setText(R.string.joining_wifi)
-        wifi.join { network ->
+        wifi.join(known, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }) { network ->
             runOnUiThread {
                 if (network == null) { b.statusHint.setText(R.string.wifi_unavailable); return@runOnUiThread }
                 val gw = wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA
@@ -161,6 +183,21 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
                 connect(gw, 7676)
             }
         }
+    }
+
+    internal fun rememberCamera(ssid: String, bssid: String?) {
+        if (ssid == prefs.cameraSsid && (bssid ?: "") == prefs.cameraBssid) return
+        prefs.cameraSsid = ssid; prefs.cameraBssid = bssid ?: ""
+        LogBus.log("Remembered the camera network ${CameraModel.parse(ssid).name}")
+        showKnownCamera()
+    }
+
+    /** "Connect to NX1000" when a camera network is remembered, with "Other camera" under it. */
+    private fun showKnownCamera() {
+        val known = knownCamera
+        if (known == null) { b.joinWifi.setText(R.string.join_wifi); b.otherCamera.visibility = View.GONE; return }
+        b.joinWifi.text = getString(R.string.join_known, CameraModel.parse(known.first).name)
+        b.otherCamera.visibility = View.VISIBLE
     }
 
     private fun connectToTyped() {
@@ -189,7 +226,14 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
                 SsdpNotices(wifi.bind(SsdpNotices.multicast(), host), cb).start()
             }.getOrNull()
         }
-        val s = CameraSession(host, port, prefs.clientId, this, RvfHttp(wifi.socketFactory(host)), notices, log = { LogBus.log(it) })
+        // the camera may need a moment after the phone joined, and may announce itself elsewhere: SSDP on its network
+        val discover: ((Long) -> CameraLocation?)? = if (loopback) null else { t ->
+            runCatching {
+                if (multicastLock == null) multicastLock = getSystemService(WifiManager::class.java).createMulticastLock("finderscope").apply { setReferenceCounted(false); acquire() }
+                wifi.bind(SsdpNotices.multicast(), host).use { SsdpSearch.search(it, t, log = { m -> LogBus.log(m) }) }
+            }.getOrNull()
+        }
+        val s = CameraSession(host, port, prefs.clientId, this, RvfHttp(wifi.socketFactory(host)), notices, log = { LogBus.log(it) }, discover = discover)
         s.options = CameraSession.Options(savePictures = prefs.savePictures, gps = if (prefs.gpsTag) ({ location() }) else null)
         session = s
         s.start()
@@ -217,7 +261,9 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     override fun onState(state: CameraSession.State, message: String) = ui {
         when (state) {
-            CameraSession.State.CONNECTING -> showIdle(getString(R.string.status_connecting, message.removePrefix("Connecting to ")), getString(R.string.status_connecting_hint), connecting = true)
+            CameraSession.State.CONNECTING ->
+                if (message == CameraSession.WAITING) showIdle(getString(R.string.status_waiting), getString(R.string.status_waiting_hint), connecting = true)
+                else showIdle(getString(R.string.status_connecting, message.removePrefix("Connecting to ")), getString(R.string.status_connecting_hint), connecting = true)
             CameraSession.State.LIVE -> {
                 b.connectPanel.visibility = View.GONE
                 b.picture.visibility = View.VISIBLE

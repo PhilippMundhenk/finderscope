@@ -99,6 +99,15 @@ Open: whether the 2012 compacts (WB150F, WB850F, ST200F, DV300F, EX2F) behave ex
 NX1000 (the 2012 app treats them the same), and the NX1000 firmware 1.10 stream format (the 2012
 app also accepts `.mp4` stream URLs; finderscope reads AVI only).
 
+## Finding the camera
+
+The camera opens its network before its UPnP server listens: a connection to :7676 right after
+joining can be refused for several seconds. The camera answers an SSDP M-SEARCH (`ST: ssdp:all`,
+sent to 239.255.255.250:1900) with a `LOCATION` such as `http://192.168.102.1:7676/smp_2_` once
+the server is up. finderscope first tries the gateway on :7676; while that is refused or times
+out it sends a search every second and uses the first answer (or NOTIFY) that names a
+MediaServer description, for up to 60 s.
+
 ## SSDP notices while connected
 
 While a session runs, the camera multicasts SSDP NOTIFYs (239.255.255.250:1900) about its

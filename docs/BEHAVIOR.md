@@ -12,7 +12,7 @@ conformance scenarios the tests check. The wire protocol itself is in [PROTOCOL.
 | Feature | Original | finderscope |
 |---|---|---|
 | Joining the camera | Scans Wi-Fi itself, auto-joins one camera network, a picker for several; deletes the user's saved camera networks and toggles Wi-Fi / mobile data on exit | Asks Android for the camera network (system dialog, nothing deleted or toggled), keeps mobile data for the rest of the phone, binds only its own sockets to the camera |
-| Finding the camera | SSDP search every second; starts on the next ConnectionManager packet (stalls if the packets come in the "wrong" order) | Asks the Wi-Fi gateway directly; SSDP only for rotation and goodbye notices |
+| Finding the camera | SSDP search every second; starts on the next ConnectionManager packet (stalls if the packets come in the "wrong" order) | Asks the Wi-Fi gateway directly, retries while the camera starts up and then searches by SSDP (any answer naming the description, in any order); remembers the last camera network and asks for exactly it next time |
 | Which cameras | 2012 networks only (no `AP_SSC_` prefix); later models sent to another app | Every model that speaks the protocol, 2012 to 2014; behaviour per model from the camera's own action list |
 | Live view | Native player, fixed screen boxes, stretched | MediaCodec (H.264) or JPEG frames, true aspect ratio, rotation applied |
 | Shutter | Press = focus, release = picture; drag off the button = cancel; 2 s debounce | Same press / release / drag-off semantics, plus a tap = focus and shoot, plus the volume keys |
@@ -77,7 +77,7 @@ except where this page says finderscope deliberately differs.
 | # | Scenario | Wire behaviour expected (as the original) | finderscope difference |
 |---|---|---|---|
 | 1 | First connect | description (pairing id, once), action list, GetInfomation without arguments, live stream; nothing else until the user acts | none (no start-up focus for 2012 cameras) |
-| 2 | SSDP answers in odd order | original may wait for the next notice | does not depend on SSDP |
+| 2 | SSDP answers in odd order | original may wait for the next notice | first answer naming the description wins |
 | 3 | Action list incomplete / not a MediaServer | never connects | connects, offers what the camera has |
 | 5 | Focus ok, no timer | focus on press, shot only after the focus answer, then stream again, then `_SM` | same |
 | 6 | Focus fails on an NX | release self-timer, no shot | same |

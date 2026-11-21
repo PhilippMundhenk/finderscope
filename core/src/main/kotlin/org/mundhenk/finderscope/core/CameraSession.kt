@@ -55,8 +55,17 @@ class CameraSession(
     private val reopenTimeoutMs: Long = 60_000,
     private val modePort: Int = RvfClient.MODE_PORT,
     private val log: (String) -> Unit = {},
+    /** Finds the camera by SSDP for up to the given time (null: not available); see [SsdpSearch]. */
+    private val discover: ((timeoutMs: Long) -> CameraLocation?)? = null,
+    /** How long to keep looking for the camera after joining its network (its servers start late). */
+    private val findTimeoutMs: Long = 60_000,
 ) {
     enum class State { CONNECTING, LIVE, CLOSED, FAILED }
+
+    companion object {
+        /** [Listener.onState] message while the camera does not answer yet. */
+        const val WAITING = "waiting for the camera"
+    }
 
     /** What the user can set on the shutter side. */
     data class Options(
@@ -114,10 +123,35 @@ class CameraSession(
         return this
     }
 
+    /**
+     * The camera's servers are not up the moment the phone joins its network, and some firmware
+     * announces its description elsewhere: keep trying the address we have, and ask SSDP in between,
+     * until the camera answers or [findTimeoutMs] is over.
+     */
+    private fun connect(): Pair<RvfClient, RvfInfo> {
+        var at = CameraLocation(host, port, "/smp_2_")
+        val deadline = System.currentTimeMillis() + findTimeoutMs
+        var waiting = false
+        while (true) {
+            val c = RvfClient(at.host, at.port, clientId, http, log, modePort = modePort, descriptionPath = at.path)
+            try { return c to c.connect() } catch (e: IOException) {
+                if (e is RvfException || !notYetThere(e) || closed.get()) throw e
+                if (System.currentTimeMillis() > deadline) throw RvfException("the camera did not answer at ${at.host}. Is Remote Viewfinder on, and the phone on the camera's network?")
+                if (!waiting) { waiting = true; listener.onState(State.CONNECTING, WAITING); log("camera not answering yet (${e.message}), looking for it") }
+                val found = discover?.invoke(1_500)
+                if (found != null && found != at) { log("camera found at $found"); at = found } else if (discover == null) Thread.sleep(1_000)
+            }
+        }
+    }
+
+    /** Errors that mean "nobody there (yet)", as opposed to a camera that answered badly. */
+    private fun notYetThere(e: IOException): Boolean =
+        e is java.net.ConnectException || e is java.net.NoRouteToHostException || e is java.net.SocketTimeoutException ||
+            (e is java.net.SocketException && e.message.orEmpty().contains("refused", ignoreCase = true))
+
     private fun run() {
         try {
-            val c = RvfClient(host, port, clientId, http, log, modePort = modePort)
-            val info = c.connect()
+            val (c, info) = connect()
             client = c
             model = CameraModel.parse(c.friendlyName.ifBlank { c.modelName })
             noticeListener = notices?.invoke { onNotice(it) }

@@ -11,6 +11,15 @@
 3. The first time, the camera asks whether to allow this phone. Confirm on the camera. It
    remembers the phone afterwards.
 
+Right after the camera opens its network, its viewfinder service is often not up yet. finderscope
+shows *Waiting for the camera…* and keeps trying (and searches for the camera by SSDP) for up to a
+minute; **Cancel** stops.
+
+**The same camera next time.** finderscope remembers the camera network it joined last (it asks
+once for the location permission, which Android requires to read a Wi-Fi network's name). The
+button then reads **Connect to <model>** and asks Android for exactly that network, which Android
+approves without its dialog after the first time. **Other camera** shows the list again.
+
 Already on the camera's Wi-Fi (joined in the phone's settings)? Tap **Connect**: the camera
 address is filled in from the Wi-Fi (usually `192.168.102.1`). Change it only if your camera
 uses another one.
