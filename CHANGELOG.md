@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-21
+
 ### Changed
 - While joining the camera Wi-Fi or connecting, the join button is **Cancel** and the other
   start-screen buttons are disabled, so a slow join cannot be started twice.
