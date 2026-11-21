@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-21
+
+### Changed
+- Start screen: wait until the camera shows its **Cancel** button, then 5 more seconds, before
+  connecting.
+
 ## [0.1.5] - 2026-11-21
 
 Still debug-signed: uninstall the previous version before installing.

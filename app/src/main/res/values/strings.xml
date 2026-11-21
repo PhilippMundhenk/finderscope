@@ -8,14 +8,14 @@
     <string name="status_idle">Not connected</string>
     <string name="status_connecting">Connecting to %1$s…</string>
     <string name="status_connecting_hint">The camera asks whether to allow this phone. Confirm on the camera (it asks every time Remote Viewfinder starts).</string>
-    <string name="howto">On the camera: Wi-Fi → <i>Remote Viewfinder</i>. Then tap <b>Join camera Wi-Fi</b> and pick the camera\'s network.</string>
+    <string name="howto">On the camera: Wi-Fi → <i>Remote Viewfinder</i>. Wait until the camera shows its <b>Cancel</b> button, then give it 5 more seconds. Then tap <b>Join camera Wi-Fi</b> and pick the camera\'s network.</string>
     <string name="join_wifi">Join camera Wi-Fi</string>
     <string name="join_known">Connect to %1$s</string>
     <string name="other_camera">Other camera</string>
     <string name="location_for_wifi">To remember your camera\'s network, so the next connection needs no confirmation, Android needs the location permission. finderscope uses it only for that, and for GPS tags if you switch them on.</string>
     <string name="status_joining">Joining the camera Wi-Fi…</string>
     <string name="status_waiting">Waiting for the camera…</string>
-    <string name="status_waiting_hint">The camera needs a few seconds after the phone joined its Wi-Fi. finderscope keeps looking for up to a minute.</string>
+    <string name="status_waiting_hint">The camera is ready about 5 seconds after it shows its Cancel button. finderscope keeps looking for up to a minute.</string>
     <string name="joining_wifi">Waiting for the camera network…</string>
     <string name="wifi_unavailable">The camera network was not found or not accepted. Is Remote Viewfinder on? You can also join it in the phone\'s Wi-Fi settings and tap Connect.</string>
     <string name="connect">Connect</string>
