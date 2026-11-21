@@ -137,6 +137,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         super.onStart()
         main.removeCallbacks(endWhileAway)
         if (session != null) decoder?.resync()
+        b.shutter.contentDescription = getString(if (prefs.tapToFocus) R.string.shutter_hint_tap else R.string.shutter_hint)
         if (fromWifiSettings) backFromWifiSettings()
         if (b.address.text.isNullOrBlank()) b.address.setText(prefs.address.ifBlank { wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA })
         if (prefs.address.isNotBlank()) showAddress()

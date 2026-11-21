@@ -86,5 +86,6 @@
     <string name="shutter_title">Shutter</string>
     <string name="shutter_hold">Hold to focus: press the shutter to focus, let go to take the picture</string>
     <string name="shutter_tap">Tap to focus: tap the picture to focus, the shutter takes the picture</string>
-    <string name="shutter_hint">With tap to focus, a tap on the live view focuses and keeps the focus; tap again to focus anew. The shutter then takes the picture with it, or focuses and takes it in one go when nothing was focused.</string>
+    <string name="shutter_mode_hint">With tap to focus, a tap on the live view focuses and keeps the focus; tap again to focus anew. The shutter then takes the picture with it, or focuses and takes it in one go when nothing was focused.</string>
+    <string name="shutter_hint_tap">Take the picture. Tap the live view first to focus.</string>
 </resources>
