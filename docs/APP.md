@@ -5,8 +5,8 @@
 1. On the camera: Wi-Fi → *Remote Viewfinder* (on NX models the Wi-Fi menu, on the compacts the
    Wi-Fi mode dial or button). The camera shows its network name, `AP_SSC_<model>_…` on most
    models, `<model>_…` on the 2012 firmware.
-   Wait until the camera shows its **Cancel** button, then give it about 5 more seconds: only then
-   is its viewfinder service ready (connecting earlier gets "not ready" answers).
+   Its viewfinder service is ready about 5 seconds after it shows its **Cancel** button;
+   finderscope waits for that by itself.
 2. In finderscope: **Join camera Wi-Fi**. Android lists the camera networks nearby; pick yours.
    Android connects the phone to it for finderscope only: other apps keep using mobile data, and
    nothing in your saved Wi-Fi networks changes.

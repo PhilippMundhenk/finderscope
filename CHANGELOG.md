@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Start screen, README and docs: Join and Remote Viewfinder can be started in either order (the
+  "wait for Cancel, then 5 s" advice is no longer needed).
+
 ## [0.1.12] - 2026-11-21
 
 ### Changed

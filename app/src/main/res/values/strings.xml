@@ -8,7 +8,7 @@
     <string name="status_idle">Not connected</string>
     <string name="status_connecting">Connecting to %1$s…</string>
     <string name="status_connecting_hint">The camera asks whether to allow this phone. Confirm on the camera (it asks every time Remote Viewfinder starts).</string>
-    <string name="howto">On the camera: Wi-Fi → <i>Remote Viewfinder</i>. Wait until the camera shows its <b>Cancel</b> button, then give it 5 more seconds. Then tap <b>Join camera Wi-Fi</b> and pick the camera\'s network.</string>
+    <string name="howto">Tap <b>Join camera Wi-Fi</b> and start Wi-Fi → <i>Remote Viewfinder</i> on the camera, in either order: finderscope waits for the camera\'s network and joins it.</string>
     <string name="join_wifi">Join camera Wi-Fi</string>
     <string name="join_known">Connect to %1$s</string>
     <string name="other_camera">Other camera</string>
