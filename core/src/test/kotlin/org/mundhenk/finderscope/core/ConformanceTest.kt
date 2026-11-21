@@ -360,7 +360,7 @@ class ConformanceTest {
         waitFor { cs.frames.get() > 0 }
         s.stallStream = true
         waitFor(what = "session ends", timeoutMs = 15_000) { cs.isClosed }
-        assertTrue(ev.log.toString(), ev.has("state:CLOSED:" + CameraSession.STOPPED_SENDING))
+        assertTrue(ev.log.toString(), ev.has("state:FAILED:" + CameraSession.STOPPED_SENDING))
         assertTrue("opens " + s.streamOpens.get(), s.streamOpens.get() <= 5)
     }
 

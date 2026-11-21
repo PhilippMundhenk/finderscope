@@ -266,7 +266,7 @@ class CameraSession(
             if (stallsInRow.incrementAndGet() > maxStallsInRow) {
                 // the camera is not sending; asking it again and again can hang it (seen on an NX1000)
                 log("live view silent ${stallsInRow.get() - 1} times in a row, giving up")
-                Thread { end(STOPPED_SENDING) }.start()
+                Thread { fail(STOPPED_SENDING) }.start()
                 return
             }
             log("live view stalled: no picture for ${silent / 1000} s (${reader?.bytesRead ?: 0} bytes on this connection), opening it again")
