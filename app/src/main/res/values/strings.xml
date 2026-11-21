@@ -3,6 +3,8 @@
     <string name="app_name">finderscope</string>
 
     <!-- connect panel -->
+    <string name="tagline">Remote Viewfinder for Samsung Wi-Fi cameras</string>
+    <string name="connect_by_address">Connect by address</string>
     <string name="status_idle">Not connected</string>
     <string name="status_connecting">Connecting to %1$s…</string>
     <string name="status_connecting_hint">The first time, the camera asks whether to allow this phone. Confirm on the camera.</string>
@@ -37,6 +39,7 @@
     <string name="size">Photo size</string>
     <string name="size_value">%1$s</string>
     <string name="shots_left">%1$d left</string>
+    <string name="shots_label">left</string>
     <string name="last_picture">Last picture: tap to open</string>
     <string name="open_failed">No app to show the picture</string>
 

@@ -22,6 +22,8 @@ import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.mundhenk.finderscope.app.databinding.ActivityMainBinding
@@ -77,10 +79,14 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
         setSupportActionBar(b.toolbar)
-        ViewCompat.setOnApplyWindowInsetsListener(b.root) { v, insets ->
+        // edge to edge: the picture runs under the system bars, the controls keep clear of them
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val topPad = b.topBar.paddingTop; val bottomPad = b.controls.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(b.root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            v.setPadding(bars.left, 0, bars.right, bars.bottom)
-            b.toolbar.setPadding(b.toolbar.paddingLeft, bars.top, b.toolbar.paddingRight, b.toolbar.paddingBottom)
+            b.connectPanel.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            b.topBar.setPadding(b.topBar.paddingLeft + 0, topPad + bars.top, b.topBar.paddingRight, b.topBar.paddingBottom)
+            b.controls.setPadding(b.controls.paddingLeft, b.controls.paddingTop, b.controls.paddingRight, bottomPad + bars.bottom)
             WindowInsetsCompat.CONSUMED
         }
 
@@ -88,6 +94,8 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b.connect.setOnClickListener { if (session == null) connectToTyped() else stopSession() }
         b.demo.setOnClickListener { startDemo() }
         b.disconnect.setOnClickListener { resumeTarget = null; stopSession() }
+        b.settingsButton.setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
+        b.addressToggle.setOnClickListener { showAddress() }
         b.lastPicture.setOnClickListener { openLastPicture() }
         b.flash.setOnClickListener { cycleFlash() }
         b.timer.setOnClickListener { cycleTimer() }
@@ -110,6 +118,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     override fun onStart() {
         super.onStart()
         if (b.address.text.isNullOrBlank()) b.address.setText(prefs.address.ifBlank { wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA })
+        if (prefs.address.isNotBlank()) showAddress()
         // back on screen: pick up the session where it was (the camera was released while away)
         val t = resumeTarget
         if (session == null && t != null) { if (demo) startDemo() else connect(t.first, t.second) }
@@ -205,10 +214,15 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             CameraSession.State.LIVE -> {
                 b.connectPanel.visibility = View.GONE
                 b.picture.visibility = View.VISIBLE
+                b.topBar.visibility = View.VISIBLE
                 b.controls.visibility = View.VISIBLE
                 b.shutter.isEnabled = false
-                supportActionBar?.subtitle = message.removePrefix("[Camera]")
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                // like a camera app: the picture alone on the screen, system bars on a swipe
+                WindowCompat.getInsetsController(window, b.root).apply {
+                    systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    hide(WindowInsetsCompat.Type.systemBars())
+                }
             }
             CameraSession.State.CLOSED, CameraSession.State.FAILED -> {
                 if (session?.isClosed == true) { session = null; if (state == CameraSession.State.FAILED || message != "Disconnected") resumeTarget = null }
@@ -222,14 +236,14 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         this.info = info
         this.model = model
         b.afOverlay.grid = model.afGrid
-        val zoom = if (client.canZoom && model.zoomsOverWifi) View.VISIBLE else View.GONE
-        b.zoomIn.visibility = zoom; b.zoomOut.visibility = zoom
+        b.zoomPill.visibility = if (client.canZoom && model.zoomsOverWifi) View.VISIBLE else View.INVISIBLE
+        b.zoomLevel.text = info.zoom.toString()
         b.flash.visibility = if (client.has("SetFlash") && info.flashModes.isNotEmpty()) View.VISIBLE else View.GONE
         flashIndex = info.flash?.let { info.flashModes.indexOf(it) }?.takeIf { it >= 0 } ?: 0
-        b.flash.text = getString(R.string.flash_value, info.flashModes.getOrElse(flashIndex) { "" })
+        showFlash(info.flashModes.getOrElse(flashIndex) { "" })
         b.size.visibility = if (client.has("SetResolution") && info.resolutions.isNotEmpty()) View.VISIBLE else View.GONE
         info.resolutions.firstOrNull()?.let { (w, h) -> b.size.text = megapixels(w, h) }
-        b.timer.setText(R.string.timer_off)
+        showTimer(0)
         showInfo()
     }
 
@@ -284,11 +298,11 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     private var shotsLeft: Int? = null
 
-    override fun onShots(available: Int) = ui { shotsLeft = available; showInfo() }
+    override fun onShots(available: Int) = ui { shotsLeft = available; b.shots.text = maxOf(available, 0).toString() }
 
     override fun onRotation(rotation: Rotation) = ui { this.rotation = rotation; layoutPicture() }
 
-    override fun onZoom(position: Int) = ui { showInfo(" · zoom $position") }
+    override fun onZoom(position: Int) = ui { b.zoomLevel.text = position.toString() }
 
     override fun onNotice(notice: Notice, detail: String) = ui {
         notice(when (notice) {
@@ -308,20 +322,37 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     private fun showIdle(status: String, hint: String, connecting: Boolean = false) {
         b.connectPanel.visibility = View.VISIBLE
         b.picture.visibility = View.GONE
+        b.topBar.visibility = View.GONE
         b.controls.visibility = View.GONE
         b.countdown.visibility = View.GONE
-        b.info.visibility = View.GONE
+        b.notice.visibility = View.GONE
+        WindowCompat.getInsetsController(window, b.root).show(WindowInsetsCompat.Type.systemBars())
         b.status.text = status
         b.statusHint.text = if (hint == getString(R.string.howto)) getText(R.string.howto) else hint
         b.connect.setText(if (connecting) R.string.cancel else R.string.connect)
-        supportActionBar?.subtitle = null
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    private fun showInfo(extra: String = "") {
-        val parts = listOfNotNull(model.name.ifBlank { null }, shotsLeft?.let { getString(R.string.shots_left, maxOf(it, 0)) })
-        b.info.text = parts.joinToString(" · ") + extra
-        b.info.visibility = if (parts.isEmpty()) View.GONE else View.VISIBLE
+    private fun showInfo() { b.info.text = model.name }
+
+    /** Connect by address: the field appears, the link that opened it goes away. */
+    private fun showAddress() {
+        b.addressGroup.visibility = View.VISIBLE
+        b.addressToggle.visibility = View.GONE
+    }
+
+    /** Flash chip: bolt (crossed out for "off") and the camera's own word for the mode. */
+    private fun showFlash(mode: String) {
+        b.flash.text = mode.uppercase()
+        b.flash.setIconResource(if (mode.equals("off", ignoreCase = true)) R.drawable.ic_flash_off else R.drawable.ic_flash)
+        b.flash.contentDescription = getString(R.string.flash_value, mode)
+    }
+
+    /** Timer chip: the clock, with the seconds when set. */
+    private fun showTimer(seconds: Int) {
+        b.timer.text = if (seconds == 0) "" else "${seconds}s"
+        b.timer.contentDescription = if (seconds == 0) getString(R.string.timer_off) else getString(R.string.timer_value, seconds)
+        b.timer.alpha = if (seconds == 0) 0.7f else 1f
     }
 
     private fun notice(text: String) {
@@ -396,14 +427,14 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         if (modes.isEmpty()) return
         flashIndex = (flashIndex + 1) % modes.size
         session?.setFlash(modes[flashIndex])
-        b.flash.text = getString(R.string.flash_value, modes[flashIndex])
+        showFlash(modes[flashIndex])
     }
 
     private fun cycleTimer() {
         val s = session ?: return
         val next = when (s.timerSeconds) { 0 -> 2; 2 -> 10; else -> 0 }
         s.setTimer(next)
-        if (next == 0) b.timer.setText(R.string.timer_off) else b.timer.text = getString(R.string.timer_value, next)
+        showTimer(next)
     }
 
     private fun chooseSize() {

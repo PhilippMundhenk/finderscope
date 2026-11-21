@@ -38,6 +38,46 @@
         <item name="cardCornerRadius">12dp</item>
     </style>
 
+    <!-- camera-style controls over the live picture -->
+    <style name="Widget.Finderscope.TopChip" parent="Widget.Material3.Button.TextButton">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">40dp</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:textColor">@color/finder_fg</item>
+        <item name="android:textAppearance">?attr/textAppearanceLabelLarge</item>
+        <item name="iconTint">@color/finder_fg</item>
+        <item name="iconPadding">4dp</item>
+        <item name="iconSize">20dp</item>
+    </style>
+
+    <style name="Widget.Finderscope.ZoomButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textColor">@color/finder_fg</item>
+        <item name="android:textAppearance">?attr/textAppearanceTitleMedium</item>
+        <item name="cornerRadius">20dp</item>
+    </style>
+
+    <style name="ShapeAppearance.Finderscope.Circle" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- outlined text field on the dark start screen -->
+    <style name="Widget.Finderscope.TextField" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/accent</item>
+        <item name="hintTextColor">@color/accent</item>
+        <item name="android:textColorHint">@color/start_muted</item>
+        <item name="helperTextTextColor">@color/start_muted</item>
+        <item name="boxCornerRadiusTopStart">14dp</item>
+        <item name="boxCornerRadiusTopEnd">14dp</item>
+        <item name="boxCornerRadiusBottomStart">14dp</item>
+        <item name="boxCornerRadiusBottomEnd">14dp</item>
+    </style>
+
     <!-- round tonal buttons on the dark viewfinder bar -->
     <style name="Widget.Finderscope.FinderButton" parent="Widget.Material3.Button.TonalButton">
         <item name="android:minWidth">0dp</item>

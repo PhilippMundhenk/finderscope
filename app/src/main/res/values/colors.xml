@@ -17,6 +17,9 @@
     <color name="finder_bg">#000000</color>
     <color name="finder_fg">#FFFFFF</color>
     <color name="finder_scrim">#99000000</color>
+    <!-- the start screen is dark too, like the camera's own screens -->
+    <color name="start_bg">#0E0E10</color>
+    <color name="start_muted">#9A9AA0</color>
     <color name="af_ok">#4ADE80</color>
     <color name="af_fail">#F87171</color>
     <color name="ic_launcher_background">#1A1A1A</color>

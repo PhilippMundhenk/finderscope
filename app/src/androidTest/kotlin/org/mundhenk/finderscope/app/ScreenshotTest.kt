@@ -53,7 +53,7 @@ class ScreenshotTest {
     @Test
     fun documentationScreenshots() {
         val context = instrumentation.targetContext
-        context.getSharedPreferences("finderscope", Context.MODE_PRIVATE).edit().clear().putString("address", "192.168.102.1").commit()
+        context.getSharedPreferences("finderscope", Context.MODE_PRIVATE).edit().clear().commit()
         // a calm status bar for the pictures
         shell("settings put global sysui_demo_allowed 1")
         shell("am broadcast -a com.android.systemui.demo -e command enter")

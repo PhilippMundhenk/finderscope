@@ -34,6 +34,7 @@ import androidx.test.espresso.matcher.ViewMatchers.isChecked
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isEnabled
 import androidx.test.espresso.matcher.ViewMatchers.isRoot
+import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withSubstring
@@ -127,7 +128,13 @@ class AppTest {
         RvfCameraSimulator(profile, frames, codec, w, h, fps = 15, photo = jpeg(320, 240, Color.BLUE), preview = jpeg(80, 60, Color.CYAN),
             log = { android.util.Log.i("AppTest", "sim: $it") }).start().also { sims += it }
 
+    /** Connect by address: opens the field (once it is open, the link is gone). */
+    private fun openAddress() {
+        try { onView(withId(R.id.addressToggle)).check(matches(isDisplayed())).perform(tap()) } catch (_: Throwable) { /* already open */ }
+    }
+
     private fun connect(s: RvfCameraSimulator) {
+        openAddress()
         onView(withId(R.id.address)).perform(replaceText("127.0.0.1:${s.controlPort}"))
         onView(withId(R.id.connect)).perform(tap())
     }
@@ -167,7 +174,8 @@ class AppTest {
 
                 // flash cycles through the camera's own list
                 onView(withId(R.id.flash)).perform(tap())
-                waitForUi { onView(withId(R.id.flash)).check(matches(withText(context.getString(R.string.flash_value, "fill")))) }
+                waitForUi { onView(withId(R.id.flash)).check(matches(withContentDescription(context.getString(R.string.flash_value, "fill")))) }
+                onView(withId(R.id.flash)).check(matches(withText("FILL")))
                 val sim = DemoCamera.running!!
                 waitFor { sim.flash == "fill" }
 
@@ -179,7 +187,7 @@ class AppTest {
 
                 // zoom: a click steps, holding repeats
                 onView(withId(R.id.zoomIn)).perform(tap())
-                waitForUi { onView(withId(R.id.info)).check(matches(withSubstring("zoom 1"))) }
+                waitForUi { onView(withId(R.id.zoomLevel)).check(matches(withText("1"))) }
                 val zoomIn = act!!.findViewById<View>(R.id.zoomIn)
                 touch(zoomIn, MotionEvent.ACTION_DOWN); Thread.sleep(1_500); touch(zoomIn, MotionEvent.ACTION_UP)
                 // holding repeats: at least two more steps
@@ -212,7 +220,8 @@ class AppTest {
 
                 // self-timer 2 s, then 10 s cancelled by tapping again, then off
                 onView(withId(R.id.timer)).perform(tap())
-                onView(withId(R.id.timer)).check(matches(withText(context.getString(R.string.timer_value, 2))))
+                onView(withId(R.id.timer)).check(matches(withContentDescription(context.getString(R.string.timer_value, 2))))
+                onView(withId(R.id.timer)).check(matches(withText("2s")))
                 waitFor { sim.led == "2" }
                 onView(withId(R.id.shutter)).perform(tap())
                 waitForUi { onView(withId(R.id.countdown)).check(matches(isDisplayed())) }
@@ -226,7 +235,7 @@ class AppTest {
                 touch(shutter, MotionEvent.ACTION_UP)
                 waitForUi { onView(withId(R.id.countdown)).check(matches(withEffectiveVisibility(Visibility.GONE))) }
                 onView(withId(R.id.timer)).perform(tap())
-                onView(withId(R.id.timer)).check(matches(withText(R.string.timer_off)))
+                onView(withId(R.id.timer)).check(matches(withContentDescription(context.getString(R.string.timer_off))))
                 waitFor { sim.led == "0" }
                 sc.onActivity { assertTrue(it.onKeyUp(KeyEvent.KEYCODE_VOLUME_UP, KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_VOLUME_UP))) }
                 assertEquals(4, sim.shotCount)
@@ -253,7 +262,7 @@ class AppTest {
             sc.onActivity { act = it }
             waitFor(what = "decoded frames") { act!!.framesDecoded > 3 }
             sc.onActivity { assertEquals(270f, it.findViewById<View>(R.id.picture).rotation) }
-            onView(withId(R.id.zoomIn)).check(matches(withEffectiveVisibility(Visibility.GONE))) // lens-ring zoom
+            onView(withId(R.id.zoomPill)).check(matches(withEffectiveVisibility(Visibility.INVISIBLE))) // lens-ring zoom
             onView(withId(R.id.size)).check(matches(isDisplayed()))
 
             // focus fails: no picture on an NX, red centre frame
@@ -288,7 +297,7 @@ class AppTest {
             s.emptyShotResult = false; s.availShots = 1
             onView(withId(R.id.shutter)).perform(tap())
             waitForUi { onView(withId(R.id.notice)).check(matches(withText(R.string.notice_card_full))) }
-            waitForUi { onView(withId(R.id.info)).check(matches(withSubstring(context.getString(R.string.shots_left, 0)))) }
+            waitForUi { onView(withId(R.id.shots)).check(matches(withText("0"))) }
             onView(withId(R.id.shutter)).check(matches(not(isEnabled())))
             // -1: numbering used up
             s.availShots = -1
@@ -337,6 +346,7 @@ class AppTest {
         try {
             ActivityScenario.launch(MainActivity::class.java).use { sc ->
                 onView(withId(R.id.address)).check(matches(withSubstring(".")))
+                openAddress()
                 onView(withId(R.id.address)).perform(replaceText("not an address"))
                 onView(withId(R.id.connect)).perform(tap())
                 onView(withId(R.id.addressLayout)).check(matches(object : org.hamcrest.TypeSafeMatcher<View>() {
@@ -439,6 +449,7 @@ class AppTest {
         val s = RvfCameraSimulator(RvfCameraSimulator.Profile.WB250F, listOf(jpeg(160, 120, Color.GREEN)), VideoCodec.MJPEG, 160, 120,
             fps = 15, photo = jpeg(320, 240, Color.BLUE), advertisedHost = ip).start().also { sims += it }
         ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            openAddress()
             onView(withId(R.id.address)).perform(replaceText("$ip:${s.controlPort}"))
             onView(withId(R.id.connect)).perform(tap())
             waitForShutter()
