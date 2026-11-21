@@ -38,6 +38,10 @@ uses another one.
   means the camera could not focus. Release to take the picture. Slide off the button before
   releasing to cancel. A short tap focuses and shoots in one go.
 * **Volume keys:** work like the shutter button (press = focus, release = picture).
+* **Tap to focus** (*Settings → Shutter*): instead of holding the shutter, tap the live view to
+  focus; the focus is kept until the picture (tap again to focus anew). The shutter and the
+  volume keys then take the picture with that focus, or focus and shoot in one go when nothing
+  was focused.
 * **Could not focus:** on the NX models no picture is taken, like on the camera itself; the
   compacts take it anyway.
 * **Self-timer:** *Timer off → 2 s → 10 s*. The countdown shows on the screen; tap the shutter

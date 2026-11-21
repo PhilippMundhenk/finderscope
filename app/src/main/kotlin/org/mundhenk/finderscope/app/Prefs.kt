@@ -45,4 +45,9 @@ class Prefs(context: Context) {
     var awayMinutes: Int
         get() = sp.getInt("awayMinutes", 5)
         set(v) = sp.edit().putInt("awayMinutes", v.coerceIn(0, 30)).apply()
+
+    /** Shutter: "hold" = press to focus, let go to shoot (like the camera's button); "tap" = tap the live view to focus, the shutter shoots. */
+    var tapToFocus: Boolean
+        get() = sp.getBoolean("tapToFocus", false)
+        set(v) = sp.edit().putBoolean("tapToFocus", v).apply()
 }

@@ -26,6 +26,38 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/shutter_title"
+                android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+            <RadioGroup
+                android:id="@+id/shutterMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/shutterHold"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/shutter_hold" />
+
+                <com.google.android.material.radiobutton.MaterialRadioButton
+                    android:id="@+id/shutterTap"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/shutter_tap" />
+            </RadioGroup>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="@string/shutter_hint"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/savePictures"
                 android:layout_width="match_parent"

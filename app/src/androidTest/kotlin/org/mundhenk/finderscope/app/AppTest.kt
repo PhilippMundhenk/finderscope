@@ -424,6 +424,12 @@ class AppTest {
             onView(withId(R.id.gpsTag)).perform(tap())
             assertEquals(false, Prefs(context).gpsTag)
             onView(withId(R.id.version)).check(matches(withSubstring("finderscope")))
+            // shutter mode: hold to focus by default, tap to focus as the alternative
+            onView(withId(R.id.shutterHold)).check(matches(isChecked()))
+            onView(withId(R.id.shutterTap)).perform(androidx.test.espresso.action.ViewActions.scrollTo(), tap())
+            assertEquals(true, Prefs(context).tapToFocus)
+            onView(withId(R.id.shutterHold)).perform(androidx.test.espresso.action.ViewActions.scrollTo(), tap())
+            assertEquals(false, Prefs(context).tapToFocus)
             // background connection time: 5 minutes by default, 0 = off, at most 30
             onView(withId(R.id.awayLabel)).check(matches(withSubstring("5 minutes")))
             it.onActivity { a -> a.findViewById<com.google.android.material.slider.Slider>(R.id.awayMinutes).value = 1f }
@@ -441,6 +447,28 @@ class AppTest {
             openActionBarOverflowOrOptionsMenu(context)
             onView(withText(R.string.clear_log)).perform(androidx.test.espresso.action.ViewActions.click())
             assertTrue(LogBus.snapshot().isEmpty())
+        }
+    }
+
+    /** Tap to focus: a tap on the live view focuses and holds, the shutter and the volume keys take the picture. */
+    @Test
+    fun tapToFocusMode() {
+        Prefs(context).tapToFocus = true
+        ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            onView(withId(R.id.demo)).perform(tap())
+            waitForShutter()
+            val sim = DemoCamera.running!!
+            val before = sim.calls.count { it == "MULTIAF" }
+            onView(withId(R.id.picture)).perform(androidx.test.espresso.action.ViewActions.click())
+            waitFor(what = "focus on tap") { sim.calls.count { it == "MULTIAF" } == before + 1 }
+            sc.onActivity { assertTrue(it.session!!.focusHeld) }
+            assertEquals(0, sim.shotCount) // a tap on the picture only focuses
+            onView(withId(R.id.shutter)).perform(tap())
+            waitFor(what = "picture") { sim.shotCount == 1 }
+            waitForShutter()
+            // volume key: the picture too (focus and shoot in one go)
+            InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_VOLUME_DOWN)
+            waitFor(what = "picture by volume key") { sim.shotCount == 2 }
         }
     }
 

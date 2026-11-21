@@ -83,4 +83,8 @@
     <string name="away_off">Stay connected in the background: off</string>
     <string name="away_hint">While finderscope is not on screen the camera stays connected for this long, so you can switch apps without the camera leaving Remote Viewfinder. Off: disconnect right away.</string>
     <string name="camera_wifi_lost">The camera\'s Wi-Fi is gone (camera switched off or out of range).</string>
+    <string name="shutter_title">Shutter</string>
+    <string name="shutter_hold">Hold to focus: press the shutter to focus, let go to take the picture</string>
+    <string name="shutter_tap">Tap to focus: tap the picture to focus, the shutter takes the picture</string>
+    <string name="shutter_hint">With tap to focus, a tap on the live view focuses and keeps the focus; tap again to focus anew. The shutter then takes the picture with it, or focuses and takes it in one go when nothing was focused.</string>
 </resources>

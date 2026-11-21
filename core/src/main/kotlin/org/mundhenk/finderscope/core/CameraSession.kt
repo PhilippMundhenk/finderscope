@@ -367,6 +367,35 @@ class CameraSession(
     /** Press and release in one go. */
     fun tap() { press(); release(true) }
 
+    // ---- tap to focus (the second shutter mode) ------------------------------------------
+
+    /**
+     * Focus and keep it, without taking the picture: a tap on the live view. A second tap while
+     * the focus is held releases it and focuses again (the subject may have moved).
+     */
+    fun focusHold() {
+        val c = client ?: return
+        if (capturing.get() || countdown != null) return
+        if (!pressed.get()) { press(); return }
+        focus = null
+        command {
+            c.releaseFocus()
+            awaitLive()
+            val f = if (c.canFocus) c.focus() else RvfFocus(true, null)
+            focus = f
+            listener.onFocus(f.ok, model.afGrid.cells(f.status))
+        }
+    }
+
+    /** The shutter with tap to focus: the picture with the held focus, or focus and picture in one go. */
+    fun shootNow() { if (pressed.get()) release(true) else tap() }
+
+    /** A held focus is let go without a picture. */
+    fun dropFocus() { if (pressed.get()) release(false) }
+
+    /** Whether a focus is held (pressed half-way, or tapped on the live view). */
+    val focusHeld: Boolean get() = pressed.get()
+
     /** Stops a running self-timer countdown; the camera's focus lock is released. */
     fun cancelCountdown() {
         val c = client ?: return

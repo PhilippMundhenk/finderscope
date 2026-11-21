@@ -612,6 +612,19 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b.shutter.setOnTouchListener { v, e ->
             val s = session ?: return@setOnTouchListener false
             if (!v.isEnabled) return@setOnTouchListener true
+            if (prefs.tapToFocus) {
+                // tap to focus: the shutter only takes the picture (with the held focus, if any)
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> v.isPressed = true
+                    MotionEvent.ACTION_UP -> {
+                        v.isPressed = false
+                        val inside = e.x >= 0 && e.y >= 0 && e.x <= v.width && e.y <= v.height
+                        if (s.countingDown) s.cancelCountdown() else if (inside) s.shootNow()
+                    }
+                    MotionEvent.ACTION_CANCEL -> v.isPressed = false
+                }
+                return@setOnTouchListener true
+            }
             when (e.actionMasked) {
                 MotionEvent.ACTION_DOWN -> { if (s.countingDown) s.cancelCountdown() else s.press(); v.isPressed = true }
                 MotionEvent.ACTION_UP -> { v.isPressed = false; s.release(e.x >= 0 && e.y >= 0 && e.x <= v.width && e.y <= v.height) }
@@ -620,7 +633,9 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             true
         }
         // accessibility services and keyboards click instead of touching
-        b.shutter.setOnClickListener { session?.let { if (it.countingDown) it.cancelCountdown() else it.tap() } }
+        b.shutter.setOnClickListener { session?.let { if (it.countingDown) it.cancelCountdown() else if (prefs.tapToFocus) it.shootNow() else it.tap() } }
+        // tap to focus: a tap on the live view focuses and keeps the focus
+        b.picture.setOnClickListener { val s = session; if (s != null && prefs.tapToFocus && b.shutter.isEnabled) s.focusHold() }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -638,7 +653,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         val s = session
         if (s != null && b.shutter.isEnabled && (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
-            if (event.repeatCount == 0) { if (s.countingDown) s.cancelCountdown() else s.press() }
+            if (event.repeatCount == 0 && !prefs.tapToFocus) { if (s.countingDown) s.cancelCountdown() else s.press() }
             return true
         }
         return super.onKeyDown(keyCode, event)
@@ -646,7 +661,10 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         val s = session
-        if (s != null && (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP)) { s.release(true); return true }
+        if (s != null && (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN || keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
+            if (!prefs.tapToFocus) s.release(true) else if (b.shutter.isEnabled) { if (s.countingDown) s.cancelCountdown() else s.shootNow() }
+            return true
+        }
         return super.onKeyUp(keyCode, event)
     }
 

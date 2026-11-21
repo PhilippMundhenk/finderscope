@@ -298,6 +298,36 @@ class ConformanceTest {
         assertFalse(cs.isClosed)
     }
 
+    /** Tap to focus: a tap focuses and holds, a second refocuses, the shutter shoots with the held focus. */
+    @Test
+    fun tapToFocusThenShutter() {
+        val s = camera()
+        val (cs, ev) = session(s)
+        cs.focusHold()
+        waitFor(what = "focus") { ev.lastFocus != null }
+        assertTrue(cs.focusHeld)
+        assertEquals(listOf("GetInfomation", "MULTIAF"), s.calls.toList())
+        ev.lastFocus = null
+        cs.focusHold() // again: let go and focus anew
+        waitFor(what = "refocus") { ev.lastFocus != null }
+        assertEquals(listOf("GetInfomation", "MULTIAF", "ReleaseSelfTimer", "MULTIAF"), s.calls.toList())
+        cs.shootNow()
+        waitFor(what = "picture") { ev.pictures.size == 1 }
+        assertTrue(!cs.focusHeld)
+        assertEquals("Shot", s.calls.last { it != "GetInfomation" })
+        // no focus held: the shutter focuses and shoots in one go
+        waitFor(what = "shutter back") { ev.log.count { it == "ready:true" } >= 2 }
+        cs.shootNow()
+        waitFor(what = "second picture", timeoutMs = 10_000) { ev.pictures.size == 2 }
+        // a held focus dropped without a picture
+        waitFor(what = "shutter back again") { ev.log.count { it == "ready:true" } >= 3 }
+        cs.focusHold(); waitFor { cs.focusHeld }
+        cs.dropFocus(); assertTrue(!cs.focusHeld)
+        Thread.sleep(300)
+        assertEquals(2, s.shotCount)
+        assertEquals(emptyList<String>(), s.violations.toList())
+    }
+
     /**
      * NX1000 (seen on the real camera): after Shot the live-view connection stays open but silent
      * while the camera shows the picture, then goes on. Not a stall: the same connection is kept
