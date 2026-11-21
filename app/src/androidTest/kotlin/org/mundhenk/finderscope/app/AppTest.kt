@@ -164,7 +164,7 @@ class AppTest {
                 var act: MainActivity? = null
                 sc.onActivity { act = it }
                 waitFor(what = "frames") { act!!.framesShown > 2 }
-                onView(withId(R.id.liveImage)).check(matches(isDisplayed()))
+                waitForUi { onView(withId(R.id.liveImage)).check(matches(isDisplayed())) } // the layout follows the first frame
                 onView(withId(R.id.info)).check(matches(withSubstring("DEMO")))
 
                 // tap = focus + picture, saved into Pictures/finderscope
@@ -228,7 +228,7 @@ class AppTest {
                 onView(withId(R.id.timer)).check(matches(withText("2s")))
                 waitFor { sim.led == "2" }
                 onView(withId(R.id.shutter)).perform(tap())
-                waitForUi { onView(withId(R.id.countdown)).check(matches(isDisplayed())) }
+                waitFor(what = "countdown shown") { act!!.countdownSeen == 2 } // on screen for 2 s only: checked via the record, not by catching it
                 waitFor { sim.shotCount == 4 }
                 waitForShutter()
                 onView(withId(R.id.timer)).perform(tap())

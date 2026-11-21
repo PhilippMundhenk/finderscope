@@ -283,7 +283,11 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     override fun onFocus(ok: Boolean, cells: List<AfCell>) = ui { b.afOverlay.show(ok, cells) }
 
+    /** The highest countdown value shown since the session started (for the tests). */
+    @Volatile var countdownSeen = 0; private set
+
     override fun onCountdown(secondsLeft: Int) = ui {
+        countdownSeen = maxOf(countdownSeen, secondsLeft)
         b.countdown.visibility = if (secondsLeft > 0) View.VISIBLE else View.GONE
         b.countdown.text = secondsLeft.toString()
     }
