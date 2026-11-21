@@ -5,6 +5,7 @@
   <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&amp;logoColor=white" alt="Android 10+">
   <img src="https://img.shields.io/badge/coverage%20gate-95%25-2E7D32" alt="95 % line coverage gate">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/PhilippMundhenk/finderscope" alt="License"></a>
+  <a href="https://github.com/PhilippMundhenk/finderscope/issues/9"><img src="https://img.shields.io/badge/Play%20Store-testers%20wanted-orange" alt="Play Store: testers wanted"></a>
 </p>
 
 # finderscope
@@ -27,6 +28,8 @@ similar. Built with the NX1000 in mind; see the status line below for what has b
 
 1. Install the APK from the [releases page](https://github.com/PhilippMundhenk/finderscope/releases)
    (Android 10 or newer).
+   A Play Store release needs 12 testers first: if you own one of these cameras, see
+   [issue #9](https://github.com/PhilippMundhenk/finderscope/issues/9).
 2. On the camera: Wi-Fi → *Remote Viewfinder*. The camera opens its own Wi-Fi network.
 3. In finderscope: **Join camera Wi-Fi** and pick the camera's network in the list Android shows.
    Mobile data stays on for everything else on the phone.
