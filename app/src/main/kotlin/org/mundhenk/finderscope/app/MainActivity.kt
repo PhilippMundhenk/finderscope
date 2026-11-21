@@ -163,6 +163,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     override fun onDestroy() {
         main.removeCallbacks(endWhileAway)
         if (isFinishing) stopSession()
+        wifi.cancelSearch()
         wifi.release()
         DemoCamera.stop()
         super.onDestroy()
@@ -193,11 +194,31 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             askLocationForWifi.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             return
         }
-        b.status.setText(R.string.status_joining)
-        b.statusHint.setText(R.string.joining_wifi)
         joining = true
         applyBusy()
-        wifi.join(known, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }, onLost = { runOnUiThread { cameraWifiLost() } }) { network ->
+        b.status.setText(R.string.status_looking)
+        b.statusHint.setText(R.string.status_looking_hint)
+        // the camera may open its network long after Join: wait for it in the phone's own scan
+        wifi.findCamera(known, findWifiMs) { target, searched ->
+            if (!joining) return@findCamera
+            if (searched && target == null) {
+                joining = false
+                b.status.setText(R.string.status_idle); b.statusHint.setText(R.string.wifi_not_seen)
+                b.wifiSettings.visibility = View.VISIBLE
+                applyBusy(); return@findCamera
+            }
+            requestCameraWifi(target)
+        }
+    }
+
+    /** How long Join waits for the camera's network to appear (tests shorten it). */
+    internal var findWifiMs = 3 * 60_000L
+
+    /** Asks Android for the camera network: by name where known, else with its picker. */
+    private fun requestCameraWifi(target: Pair<String, String?>?) {
+        b.status.setText(R.string.status_joining)
+        b.statusHint.setText(R.string.joining_wifi)
+        wifi.join(target, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }, onLost = { runOnUiThread { cameraWifiLost() } }) { network ->
             runOnUiThread {
                 if (!joining) return@runOnUiThread // cancelled meanwhile
                 joining = false
@@ -256,6 +277,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     private fun cancelJoin() {
         joining = false
+        wifi.cancelSearch()
         resumeTarget = null
         stopSession()
         wifi.release()

@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Join** no longer needs the camera's network to be up already: finderscope waits for it in
+  the phone's Wi-Fi scan for up to 3 minutes (*Looking for the camera's Wi-Fi…*) and joins it as
+  soon as it appears; a camera joined before is joined without Android's dialog. Cancel stops
+  the search. Without location access it asks Android's picker at once, as before.
+
 ## [0.1.11] - 2026-11-21
 
 ### Added

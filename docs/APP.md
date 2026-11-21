@@ -23,6 +23,10 @@ once for the location permission, which Android requires to read a Wi-Fi network
 button then reads **Connect to <model>** and asks Android for exactly that network, which Android
 approves without its dialog after the first time. **Other camera** shows the list again.
 
+The order does not matter: tap **Join** first and switch Remote Viewfinder on afterwards, or the
+other way round. finderscope looks for the camera's network in the phone's Wi-Fi scan for up to
+3 minutes and joins it as soon as it appears (*Looking for the camera's Wi-Fi…*).
+
 If Android's list stays empty although the camera shows its network, finderscope offers **Join
 in Wi-Fi settings** after the list is closed: pick the camera's network there and come back,
 finderscope connects by itself. (It also looks into the phone's own Wi-Fi scan first and asks for

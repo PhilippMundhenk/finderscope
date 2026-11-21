@@ -45,6 +45,7 @@ import androidx.test.rule.GrantPermissionRule
 import org.hamcrest.Matcher
 import org.hamcrest.Matchers.allOf
 import org.hamcrest.Matchers.not
+import org.hamcrest.Matchers.anyOf
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -385,7 +386,7 @@ class AppTest {
                 // the camera network request, answered by the test instead of the system's picker:
                 // first no network (picker cancelled), then the phone's own Wi-Fi as "the camera network"
                 var answer: (android.net.ConnectivityManager.NetworkCallback) -> Unit = { it.onUnavailable() }
-                sc.onActivity { act -> act.wifi.requester = { _, cb -> answer(cb) }; act.findTimeoutMs = 5_000 }
+                sc.onActivity { act -> act.wifi.requester = { _, cb -> answer(cb) }; act.findTimeoutMs = 5_000; act.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L), Triple("AP_SSC_NX1000_0-AA:BB:CC", "02:11:22:33:44:55", 3L)) } }
                 onView(withId(R.id.joinWifi)).perform(tap())
                 waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_unavailable))) }
                 val wifiNetwork = context.getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
@@ -592,13 +593,15 @@ class AppTest {
             onView(withId(R.id.joinWifi)).check(matches(withText(context.getString(R.string.join_known, "NX1000"))))
             onView(withId(R.id.otherCamera)).check(matches(isDisplayed()))
             val requests = CopyOnWriteArrayList<String>()
-            sc.onActivity { a -> a.wifi.requester = { r, cb -> requests += r.toString(); cb.onUnavailable() } }
+            sc.onActivity { a -> a.wifi.requester = { r, cb -> requests += r.toString(); cb.onUnavailable() }; a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L), Triple("AP_SSC_NX1000_0-AA:BB:CC", "02:11:22:33:44:55", 3L)) } }
             onView(withId(R.id.joinWifi)).perform(tap())
             waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_unavailable))) }
             assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
+            // "Other camera": any camera network, here another one
+            sc.onActivity { a -> a.wifi.scanResults = { listOf(Triple("AP_SSC_WB250F_0-DD:EE:FF", "02:66:77:88:99:00", 2L)) } }
             onView(withId(R.id.otherCamera)).perform(tap())
             waitFor { requests.size == 2 }
-            assertTrue(requests.toString(), !requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
+            assertTrue(requests.toString(), requests.last().contains("AP_SSC_WB250F_0-DD:EE:FF"))
             // a newly joined camera replaces the remembered one
             sc.onActivity { it.rememberCamera("AP_SSC_WB250F_0-DD:EE:FF", null) }
             onView(withId(R.id.joinWifi)).check(matches(withText(context.getString(R.string.join_known, "WB250F"))))
@@ -608,8 +611,8 @@ class AppTest {
     }
 
     /**
-     * The phone's own Wi-Fi scan decides: a camera network seen there is asked for by name;
-     * without one the picker gets the pattern. When Android gives up, the Wi-Fi settings are offered.
+     * The phone's own Wi-Fi scan decides: a camera network seen there is asked for by name, also
+     * when it appears only later; when none comes, or Android gives up, the Wi-Fi settings are offered.
      */
     @Test
     fun joinUsesThePhonesScan_andOffersWifiSettings() {
@@ -629,13 +632,23 @@ class AppTest {
                 onView(withId(R.id.joinWifi)).perform(tap())
                 waitForUi { onView(withId(R.id.wifiSettings)).check(matches(isDisplayed())) }
                 assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
-                assertTrue(LogBus.snapshot().toString(), LogBus.snapshot().any { it.contains("camera network NX1000 seen 3 s ago") })
-                // nothing in the scan: the picker gets the pattern
-                sc.onActivity { a -> a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L)) } }
+                assertTrue(LogBus.snapshot().toString(), LogBus.snapshot().any { it.contains("camera network NX1000 seen after 0 s") })
+                // the camera comes on later: finderscope keeps looking and joins when it appears
+                val polls = java.util.concurrent.atomic.AtomicInteger()
+                sc.onActivity { a ->
+                    a.wifi.pollMs = 100
+                    a.wifi.scanResults = { if (polls.incrementAndGet() < 5) listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L)) else listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L), Triple("AP_SSC_NX1000_0-AA:BB:CC", "02:11:22:33:44:55", 3L)) }
+                }
                 onView(withId(R.id.joinWifi)).perform(tap())
                 waitFor { requests.size == 2 }
-                assertTrue(requests.toString(), !requests.last().contains("AP_SSC_NX1000"))
-                assertTrue(LogBus.snapshot().any { it.contains("no camera network among them") })
+                assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
+                assertTrue(polls.get() >= 5)
+                assertTrue(LogBus.snapshot().any { it.contains("no camera network yet") })
+                // it never comes: after the time, the Wi-Fi settings are offered, and no request was made
+                sc.onActivity { a -> a.findWifiMs = 500; a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L)) } }
+                onView(withId(R.id.joinWifi)).perform(tap())
+                waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_not_seen))) }
+                assertEquals(2, requests.size)
                 // the Wi-Fi settings, and back: not on a camera network (the emulator's own Wi-Fi), or connecting
                 intending(hasAction(android.provider.Settings.Panel.ACTION_WIFI)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
                 onView(withId(R.id.wifiSettings)).perform(tap())
@@ -657,12 +670,34 @@ class AppTest {
         } finally { Intents.release() }
     }
 
+    /** The phone's real Wi-Fi scan (the emulator's own network is no camera): looked through, then given up. */
+    @Test
+    fun realScanWithoutCamera() {
+        ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            val requests = CopyOnWriteArrayList<String>()
+            sc.onActivity { a -> a.findWifiMs = 1_500; a.wifi.pollMs = 200; a.wifi.requester = { r, cb -> requests += r.toString(); cb.onUnavailable() } }
+            onView(withId(R.id.joinWifi)).perform(tap())
+            // where the scan cannot be read Android's picker is asked at once; otherwise the search gives up
+            waitForUi { onView(withId(R.id.statusHint)).check(matches(anyOf(withText(R.string.wifi_not_seen), withText(R.string.wifi_unavailable)))) }
+            assertTrue(LogBus.snapshot().toString(), requests.isNotEmpty() || LogBus.snapshot().any { it.contains("no camera network within") })
+        }
+    }
+
     /** While joining only Cancel works; a late answer after Cancel changes nothing. */
     @Test
     fun joiningDisablesTheStartScreen() {
         ActivityScenario.launch(MainActivity::class.java).use { sc ->
             var pending: android.net.ConnectivityManager.NetworkCallback? = null
-            sc.onActivity { a -> a.wifi.requester = { _, cb -> pending = cb } }
+            // looking for the camera's network: only Cancel, and Cancel stops the search
+            sc.onActivity { a -> a.wifi.requester = { _, cb -> pending = cb }; a.wifi.scanResults = { emptyList() } }
+            onView(withId(R.id.joinWifi)).perform(tap())
+            onView(withId(R.id.status)).check(matches(withText(R.string.status_looking)))
+            onView(withId(R.id.demo)).check(matches(org.hamcrest.Matchers.not(isEnabled())))
+            sc.onActivity { assertTrue(it.wifi.searching) }
+            onView(withId(R.id.joinWifi)).perform(tap()) // Cancel
+            sc.onActivity { assertTrue(!it.wifi.searching); assertTrue(!it.busy) }
+            // the camera network seen: the request waits for Android
+            sc.onActivity { a -> a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L), Triple("AP_SSC_NX1000_0-AA:BB:CC", "02:11:22:33:44:55", 3L)) } }
             onView(withId(R.id.joinWifi)).perform(tap())
             onView(withId(R.id.joinWifi)).check(matches(withText(R.string.cancel)))
             onView(withId(R.id.status)).check(matches(withText(R.string.status_joining)))

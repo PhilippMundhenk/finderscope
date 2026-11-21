@@ -43,11 +43,8 @@ class CameraWifi(private val context: Context) {
      */
     fun join(known: Pair<String, String?>? = null, onIdentified: (String, String?) -> Unit = { _, _ -> }, onLost: () -> Unit = {}, onResult: (Network?) -> Unit) {
         release()
-        // Android's picker only lists what its own scan finds, and that sometimes stays empty
-        // (field test: camera network up, picker searching forever). The phone's last scan
-        // tells whether it sees the camera at all, and a camera seen there is asked for by name.
-        val seen = if (known == null) cameraInScan() else null
-        val target = known ?: seen
+        // [known]: a network by name (remembered, or just found by [findCamera]); none: Android's picker
+        val target = known
         val builder = WifiNetworkSpecifier.Builder()
         if (target != null) {
             builder.setSsid(target.first)
@@ -86,28 +83,70 @@ class CameraWifi(private val context: Context) {
     /** The phone's scan results (tests set them; null = ask Android). */
     var scanResults: (() -> List<Triple<String, String, Long>>)? = null
 
+    /** How often [findCamera] looks at the scan results (tests shorten it). */
+    var pollMs = 2_000L
+
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var search: Runnable? = null
+
     /**
-     * A camera network in the phone's latest Wi-Fi scan (name, hardware address), the strongest
-     * if there are several; null if the scan has none or cannot be read (no location permission).
-     * Also asks for a fresh scan and logs what was found.
+     * Waits for the camera's network to show up in the phone's Wi-Fi scan, for up to [timeoutMs]:
+     * the camera may open its network long after Join was pressed, and Android's picker does not
+     * reliably notice a network that appears while it is open. Looks every [pollMs] and asks for a
+     * fresh scan every 30 s (Android allows about four per two minutes). [onResult] gets the
+     * network (name, hardware address) as soon as one is seen ([known]: only that one), or null
+     * with `searched = true` after the time is up. Where the scan cannot be read (no location
+     * permission, location off) it answers at once with [known] and `searched = false`.
      */
-    @Suppress("DEPRECATION")
-    private fun cameraInScan(): Pair<String, String?>? {
-        val wm = context.getSystemService(WifiManager::class.java)
-        val results = scanResults?.invoke() ?: runCatching {
-            runCatching { wm?.startScan() }
-            val now = android.os.SystemClock.elapsedRealtime()
-            // (name, hardware address, age in seconds); strongest first
-            wm?.scanResults.orEmpty().sortedByDescending { it.level }.map { Triple(it.SSID.orEmpty(), it.BSSID.orEmpty(), (now - it.timestamp / 1000) / 1000) }
-        }.getOrElse { LogBus.log("Wi-Fi scan not readable: $it"); emptyList() }
-        val cameras = results.filter { isCameraNetwork(it.first) }
-        if (cameras.isEmpty()) {
-            LogBus.log("Wi-Fi scan: ${results.size} networks, no camera network among them${results.minOfOrNull { it.third }?.let { " (newest $it s old)" } ?: ""}")
-            return null
+    fun findCamera(known: Pair<String, String?>?, timeoutMs: Long, onResult: (target: Pair<String, String?>?, searched: Boolean) -> Unit) {
+        cancelSearch()
+        if (scanResults == null && !scanReadable()) { onResult(known, false); return }
+        val started = android.os.SystemClock.elapsedRealtime()
+        var lastScanRequest = 0L
+        var reported = false
+        val step = object : Runnable {
+            override fun run() {
+                if (search !== this) return
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (now - lastScanRequest >= 30_000) { lastScanRequest = now; requestScan() }
+                val results = readScan()
+                val found = results.firstOrNull { if (known != null) it.first.trim('"') == known.first else isCameraNetwork(it.first) }
+                if (found != null) {
+                    search = null
+                    LogBus.log("Wi-Fi scan: camera network ${CameraModel.parse(found.first).name} seen after ${(now - started) / 1000} s")
+                    onResult(found.first.trim('"') to (found.second.ifEmpty { null } ?: known?.second), true)
+                    return
+                }
+                if (!reported) {
+                    reported = true
+                    LogBus.log("Wi-Fi scan: ${results.size} networks, no camera network yet${results.minOfOrNull { it.third }?.let { " (newest $it s old)" } ?: ""}; looking for up to ${timeoutMs / 1000} s")
+                }
+                if (now - started >= timeoutMs) { search = null; LogBus.log("Wi-Fi scan: no camera network within ${timeoutMs / 1000} s"); onResult(null, true); return }
+                handler.postDelayed(this, pollMs)
+            }
         }
-        LogBus.log("Wi-Fi scan: camera network ${CameraModel.parse(cameras.first().first).name} seen ${cameras.first().third} s ago")
-        return cameras.first().first to cameras.first().second.ifEmpty { null }
+        search = step
+        step.run()
     }
+
+    /** Stops [findCamera] (Cancel). */
+    fun cancelSearch() { search?.let { handler.removeCallbacks(it) }; search = null }
+
+    val searching: Boolean get() = search != null
+
+    private fun scanReadable(): Boolean =
+        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED &&
+            context.getSystemService(android.location.LocationManager::class.java)?.isLocationEnabled != false
+
+    @Suppress("DEPRECATION")
+    private fun requestScan() { if (scanResults == null) runCatching { context.getSystemService(WifiManager::class.java)?.startScan() } }
+
+    /** (name, hardware address, age in seconds), strongest first. */
+    private fun readScan(): List<Triple<String, String, Long>> = scanResults?.invoke() ?: runCatching {
+        val wm = context.getSystemService(WifiManager::class.java)
+        val now = android.os.SystemClock.elapsedRealtime()
+        wm?.scanResults.orEmpty().sortedByDescending { it.level }.map { Triple(it.SSID.orEmpty(), it.BSSID.orEmpty(), (now - it.timestamp / 1000) / 1000) }
+    }.getOrElse { LogBus.log("Wi-Fi scan not readable: $it"); emptyList() }
 
     /** A network callback that, from Android 12 on, also gets the network's name (with the location permission). */
     private fun callback(on: (Event, Network?, NetworkCapabilities?) -> Unit): ConnectivityManager.NetworkCallback =

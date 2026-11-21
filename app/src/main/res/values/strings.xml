@@ -88,4 +88,7 @@
     <string name="shutter_tap">Tap to focus: tap the picture to focus, the shutter takes the picture</string>
     <string name="shutter_mode_hint">With tap to focus, a tap on the live view focuses and keeps the focus; tap again to focus anew. The shutter then takes the picture with it, or focuses and takes it in one go when nothing was focused.</string>
     <string name="shutter_hint_tap">Take the picture. Tap the live view first to focus.</string>
+    <string name="status_looking">Looking for the camera\'s Wi-Fi…</string>
+    <string name="status_looking_hint">Start Remote Viewfinder on the camera. finderscope joins its network as soon as it appears (up to 3 minutes).</string>
+    <string name="wifi_not_seen">No camera network appeared within 3 minutes. Is Remote Viewfinder on? If the phone does not see it, join it in the Wi-Fi settings: finderscope connects when you come back.</string>
 </resources>
