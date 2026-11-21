@@ -73,6 +73,12 @@ class RvfCameraSimulator(
             "GetInfomation" to listOf("GPSINFO"), "MULTIAF" to emptyList(), "touchAF" to listOf("AFPOSITION"), "Shot" to emptyList(),
             "HeartBeat" to listOf("Duration"), "SetFlash" to listOf("FLASHMODE"), "StartZoom" to listOf("ZoomDirection"), "StopZoom" to listOf("ZoomDirection"),
         ), 0, RvfClient.UA_PREFIX_ML, "CSC_1.1", true),
+        /** finderscope's demo camera: a compact with everything (zoom, flash, sizes, timer, GPS). */
+        DEMO("DEMO", mapOf(
+            "GetInfomation" to emptyList(), "SetResolution" to listOf("RESOLUTION"), "ZoomIN" to emptyList(), "ZoomOUT" to emptyList(),
+            "MULTIAF" to emptyList(), "Shot" to emptyList(), "ShotWithGPS" to listOf("GPSINFO"), "ReleaseSelfTimer" to listOf("RELEASETIMER"),
+            "SetLED" to listOf("LEDTIME"), "SetFlash" to listOf("FLASHMODE"),
+        ), 10, RvfClient.UA_PREFIX, "DSC_1.0", false),
     }
 
     private val control = HttpServer(controlPort, { handle(it) }, log)

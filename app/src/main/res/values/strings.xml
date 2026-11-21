@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">finderscope</string>
+
+    <!-- connect panel -->
+    <string name="status_idle">Not connected</string>
+    <string name="status_connecting">Connecting to %1$s…</string>
+    <string name="status_connecting_hint">The first time, the camera asks whether to allow this phone. Confirm on the camera.</string>
+    <string name="howto">On the camera: Wi-Fi → <i>Remote Viewfinder</i>. Then tap <b>Join camera Wi-Fi</b> and pick the camera\'s network.</string>
+    <string name="join_wifi">Join camera Wi-Fi</string>
+    <string name="joining_wifi">Waiting for the camera network…</string>
+    <string name="wifi_unavailable">The camera network was not found or not accepted. Is Remote Viewfinder on? You can also join it in the phone\'s Wi-Fi settings and tap Connect.</string>
+    <string name="connect">Connect</string>
+    <string name="cancel">Cancel</string>
+    <string name="demo">Try the demo</string>
+    <string name="demo_hint">No camera at hand? The demo runs a simulated camera on this phone.</string>
+    <string name="address">Camera address</string>
+    <string name="address_hint">Filled in from the Wi-Fi. Change it only if the camera uses another one.</string>
+    <string name="address_invalid">Enter the camera\'s address, for example 192.168.102.1</string>
+    <string name="failed">Not connected: %1$s</string>
+    <string name="closed">Disconnected</string>
+
+    <!-- live view -->
+    <string name="live_description">Live view of the camera</string>
+    <string name="shutter">Shutter</string>
+    <string name="shutter_hint">Hold to focus, release to take the picture. Slide off to cancel. The volume keys work too.</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="zoom_in">Zoom in</string>
+    <string name="zoom_out">Zoom out</string>
+    <string name="zoom_in_short">T</string>
+    <string name="zoom_out_short">W</string>
+    <string name="flash">Flash</string>
+    <string name="flash_value">Flash %1$s</string>
+    <string name="timer">Self-timer</string>
+    <string name="timer_off">Timer off</string>
+    <string name="timer_value">Timer %1$d s</string>
+    <string name="size">Photo size</string>
+    <string name="size_value">%1$s</string>
+    <string name="shots_left">%1$d left</string>
+    <string name="last_picture">Last picture: tap to open</string>
+    <string name="open_failed">No app to show the picture</string>
+
+    <!-- notices -->
+    <string name="notice_focus_failed">Could not focus</string>
+    <string name="notice_focus_failed_nx">Could not focus, no picture taken</string>
+    <string name="notice_card_full">The camera\'s card is full</string>
+    <string name="notice_numbering_full">The card\'s folder numbering is used up. Format the card or use another one.</string>
+    <string name="notice_shot_failed">The camera could not take the picture. Try again.</string>
+    <string name="notice_no_picture">The camera took the picture but did not hand it over. It is on the card.</string>
+    <string name="notice_on_card">The picture is on the camera\'s card.</string>
+    <string name="notice_command_failed">The camera did not do that: %1$s</string>
+    <string name="notice_reconnected">The live view was interrupted and is back.</string>
+    <string name="picture_saved">%1$s saved to Pictures/finderscope</string>
+    <string name="preview_saved">Preview %1$s saved to Pictures/finderscope. The full picture stays on the card.</string>
+    <string name="save_failed">Could not save the picture: %1$s</string>
+
+    <!-- settings, log -->
+    <string name="settings">Settings</string>
+    <string name="log">Log</string>
+    <string name="clear_log">Clear log</string>
+    <string name="save_pictures">Copy every picture to the phone</string>
+    <string name="save_pictures_hint">Into Pictures/finderscope. The 2012 models hand over a small preview only; the full picture stays on the card.</string>
+    <string name="gps_tag">Tag pictures with the phone\'s location</string>
+    <string name="gps_tag_hint">The camera writes the position into the picture. Needs the location permission.</string>
+    <string name="version">finderscope %1$s</string>
+    <string name="disclaimer">finderscope is an independent open-source project. It has no relation to Samsung Electronics and is neither endorsed nor supported by them. Camera names only say which cameras it works with.</string>
+</resources>

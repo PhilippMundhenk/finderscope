@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Brand tokens, see docs/BRANDING.md. Night variants in values-night/colors.xml. -->
+<resources>
+    <color name="primary">#C2410C</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="primary_container">#FFE3D3</color>
+    <color name="on_primary_container">#4A1503</color>
+    <color name="accent">#E8590C</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="on_surface">#1A1A1A</color>
+    <color name="surface_container">#F7F7F7</color>
+    <color name="on_surface_variant">#666666</color>
+    <color name="outline">#E3E3E3</color>
+    <color name="ok">#2E7D32</color>
+    <color name="error">#C62828</color>
+    <!-- the viewfinder itself is always dark, in both themes -->
+    <color name="finder_bg">#000000</color>
+    <color name="finder_fg">#FFFFFF</color>
+    <color name="finder_scrim">#99000000</color>
+    <color name="af_ok">#4ADE80</color>
+    <color name="af_fail">#F87171</color>
+    <color name="ic_launcher_background">#1A1A1A</color>
+</resources>

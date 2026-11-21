@@ -1,0 +1,106 @@
+name: CI
+
+# Every push / PR: core tests (protocol, session engine, conformance scenarios) with the 95 %
+# coverage gate, debug + release APK, Espresso suite on an emulator with its gate.
+# On v* tags: a GitHub release with the APK attached.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Core tests + conformance + coverage gate, APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Core tests (protocol, session, conformance scenarios) with the 95 % line-coverage gate
+        run: ./gradlew :core:check --no-daemon
+      - name: Debug APK + instrumented test APK
+        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon
+      - name: Release APK (signed with the release key when the secret exists, otherwise debug-signed)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > app/release.keystore; fi
+          ./gradlew :app:assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release*.apk finderscope-${GITHUB_REF_NAME//\//-}.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: finderscope-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: finderscope-release-apk
+          path: finderscope-*.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jvm-test-and-coverage-reports
+          path: core/build/reports
+
+  ui-test:
+    name: Android UI end-to-end + 95 % coverage gate (emulator)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Espresso tests with coverage, then the gate
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save
+          # the runner executes `script` one line at a time, so the logic lives in a script file:
+          # wait for a healthy adb device, close the launcher popup, run the suite + gate with one
+          # retry on window-focus loss, and keep screenshots / focused window / logcat as artifacts
+          script: tools/ci-emulator-tests.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-test-and-coverage-reports
+          path: |
+            app/build/reports/androidTests/connected
+            app/build/reports/jacoco
+            app/build/emulator-diagnostics
+
+  release:
+    name: GitHub release (tags)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: [test, ui-test]
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: finderscope-release-apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: finderscope-*.apk
