@@ -282,6 +282,8 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
                 }
             }
             CameraSession.State.CLOSED, CameraSession.State.FAILED -> {
+                // the end of a session already replaced (left the screen and came back): not this one's
+                if (session?.isClosed == false) return@ui
                 if (session?.isClosed == true) { session = null; if (state == CameraSession.State.FAILED || message != "Disconnected") resumeTarget = null }
                 releaseDecoder()
                 showIdle(if (state == CameraSession.State.FAILED) getString(R.string.failed, message) else if (message == "Disconnected") getString(R.string.closed) else message, getString(R.string.howto))

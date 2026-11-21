@@ -97,7 +97,7 @@ class AppTest {
     private fun waitFor(timeoutMs: Long = 30_000, what: String = "condition", cond: () -> Boolean) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (!cond()) {
-            if (System.currentTimeMillis() > deadline) throw AssertionError("timeout waiting for $what")
+            if (System.currentTimeMillis() > deadline) throw AssertionError("timeout waiting for $what; app log:\n" + LogBus.snapshot().takeLast(30).joinToString("\n"))
             Thread.sleep(100)
         }
     }
