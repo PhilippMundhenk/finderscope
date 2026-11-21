@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- The live view adapts to the window: top bar, picture and controls stacked in tall windows,
+  settings and shutter in columns beside the picture in wide ones (landscape, split screen),
+  the controls over the picture's edges only in nearly square windows. Zoom and notices no
+  longer cover the picture.
+
 ## [0.1.0] - 2026-11-21
 
 First release. Complete against the simulated camera (conformance suite, UI tests on an

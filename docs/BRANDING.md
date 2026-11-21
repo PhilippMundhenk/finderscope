@@ -41,8 +41,13 @@ System font, Material 3 scale. The countdown is 96 sp bold, the shutter label ti
 
 ## 4. Components
 
-* **Viewfinder** (live): the camera's picture full-bleed at its true aspect ratio on black,
-  system bars hidden (a swipe brings them back). Nothing but the picture and the controls.
+* **Viewfinder** (live): the camera's picture at its true aspect ratio on black, system bars
+  hidden (a swipe brings them back). The picture is never covered when the window has room
+  (`ViewfinderLayout`): tall windows stack top bar, picture (right under the bar) and controls;
+  wide windows put the settings in a 72 dp column on the left and the shutter column (112 dp,
+  176 dp with zoom) on the right. Only when a clear picture would be under 60 % of the largest
+  that fits (nearly square windows) do the controls lie over its edges, then on scrims.
+  In columns the chips show the icon above the label; the zoom pill stands upright, T on top.
 * **Top bar** over a black-to-clear gradient (`scrim_top`): close (×), camera name, then chips
   with an icon and a short label: flash (bolt; crossed out for *off*; the camera's word for the
   mode in capitals), self-timer (clock; `2s` / `10s`, dimmed when off), photo size (`20M`),

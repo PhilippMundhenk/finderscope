@@ -48,6 +48,8 @@ Everything the app can do, and tips: [docs/APP.md](docs/APP.md).
 |---|---|---|
 | ![start screen](docs/screenshots/start.png) | ![live view with focus frames](docs/screenshots/live.png) | ![settings](docs/screenshots/settings.png) |
 
+![live view in landscape: settings and shutter in columns beside the picture](docs/screenshots/live-landscape.png)
+
 Taken against the built-in demo camera; more in [docs/screenshots.md](docs/screenshots.md).
 
 ## Better than the original

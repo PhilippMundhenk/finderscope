@@ -17,6 +17,15 @@ self-timer, photo size, zoom (W / T), the last picture bottom left.
 
 ![live view](screenshots/live.png)
 
+## Live view in landscape
+
+Wide windows put the settings in a column on the left and the shutter, zoom, last picture and
+shots left in a column on the right; the picture stays clear between them. Tall windows (the
+upright phone above, a foldable's cover screen, split screen side by side) stack top bar,
+picture and controls. Only nearly square windows lay the controls over the picture's edges.
+
+![live view in landscape](screenshots/live-landscape.png)
+
 ## Settings
 
 Copying pictures to the phone, GPS tag, version.
