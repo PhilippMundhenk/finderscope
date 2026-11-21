@@ -55,6 +55,10 @@ for attempt in 1 2; do
   fi
 done
 
+# coverage per file in the log (the report artifact is not always reachable)
+f=app/build/reports/jacoco/jacocoAndroidTestReport/jacocoAndroidTestReport.xml
+[ -f "$f" ] && python3 tools/coverage-summary.py "$f" || true
+
 # documentation screenshots taken by ScreenshotTest (demo camera)
 mkdir -p app/build/screenshots
 adb pull /data/local/tmp/finderscope-shots/. app/build/screenshots/ >/dev/null 2>&1 || true

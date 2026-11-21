@@ -56,6 +56,8 @@ import org.junit.runner.RunWith
 import org.mundhenk.finderscope.core.AfGrid
 import org.mundhenk.finderscope.core.AviFrameReader
 import org.mundhenk.finderscope.core.RvfCameraSimulator
+import org.mundhenk.finderscope.core.SsdpNotices
+import java.net.InetSocketAddress
 import org.mundhenk.finderscope.core.VideoCodec
 import java.io.ByteArrayOutputStream
 
@@ -408,6 +410,36 @@ class AppTest {
             val sim = DemoCamera.running!!
             waitFor { sim.shotCount == 1 }
             assertTrue(sim.calls.toString(), sim.calls.contains("Shot") || sim.calls.contains("ShotWithGPS"))
+        }
+    }
+
+    /** The emulator's own (non-loopback) address: talking to it goes the way a real camera would. */
+    private fun deviceAddress(): String? = java.net.NetworkInterface.getNetworkInterfaces().toList()
+        .filter { it.isUp && !it.isLoopback }
+        .flatMap { it.inetAddresses.toList() }
+        .firstOrNull { it is java.net.Inet4Address && it.isSiteLocalAddress }?.hostAddress
+
+    /**
+     * Over the network instead of loopback: sockets on the camera network, the multicast lock,
+     * and the camera's SSDP notices (rotation, goodbye) arriving through the multicast group.
+     */
+    @Test
+    fun overTheNetwork_rotationAndGoodbyeNotices() {
+        val ip = deviceAddress() ?: return // no network on this device: nothing to test
+        val s = RvfCameraSimulator(RvfCameraSimulator.Profile.WB250F, listOf(jpeg(160, 120, Color.GREEN)), VideoCodec.MJPEG, 160, 120,
+            fps = 15, photo = jpeg(320, 240, Color.BLUE), advertisedHost = ip).start().also { sims += it }
+        ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            onView(withId(R.id.address)).perform(replaceText("$ip:${s.controlPort}"))
+            onView(withId(R.id.connect)).perform(tap())
+            waitForShutter()
+            sc.onActivity { it.onConfigurationChanged(it.resources.configuration) }
+            val group = InetSocketAddress(SsdpNotices.GROUP, SsdpNotices.PORT)
+            Thread.sleep(1_000) // the notice listener joins the group right after connecting
+            s.sendNotice("ssdp:rotationR", group)
+            waitForUi(10_000) { sc.onActivity { act -> assertEquals(90f, act.findViewById<View>(R.id.picture).rotation) } }
+            s.sendNotice("ssdp:byebye", group)
+            waitForUi { onView(withId(R.id.status)).check(matches(withText("The camera ended the connection"))) }
+            onView(withId(R.id.connectPanel)).check(matches(isDisplayed()))
         }
     }
 
