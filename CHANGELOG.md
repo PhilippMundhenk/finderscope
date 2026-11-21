@@ -15,6 +15,10 @@ All notable changes to this project are documented here. The format follows
 - Connecting right after joining the camera network failed with "connection refused" because the
   camera's viewfinder service starts a few seconds after its Wi-Fi. finderscope now waits for it
   (*Waiting for the camera…*), retrying and searching by SSDP for up to a minute.
+- After a picture the NX1000 live view stalled again and again: the camera keeps the stream open
+  but silent while it shows the picture, and finderscope dropped it after 5 s. It now keeps the
+  connection for up to 20 s after a picture, waits longer with each stall in a row, and logs how
+  much a stalled connection delivered.
 
 ## [0.1.1] - 2026-11-21
 

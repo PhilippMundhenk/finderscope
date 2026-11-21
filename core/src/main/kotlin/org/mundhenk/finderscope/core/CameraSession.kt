@@ -53,6 +53,8 @@ class CameraSession(
     private val notices: ((onNotice: (SsdpNotice) -> Unit) -> SsdpNotices?)? = null,
     private val stallMs: Long = 5_000,
     private val reopenTimeoutMs: Long = 60_000,
+    /** After a picture the NX1000 keeps the stream open but silent while it shows the picture: no stall for this long. */
+    private val afterShotQuietMs: Long = 20_000,
     private val modePort: Int = RvfClient.MODE_PORT,
     private val log: (String) -> Unit = {},
     /** Finds the camera by SSDP for up to the given time (null: not available); see [SsdpSearch]. */
@@ -201,8 +203,15 @@ class CameraSession(
         }
     }
 
+    @Volatile private var reader: AviFrameReader? = null
+    @Volatile private var quietUntil = 0L
+    /** Stalls in a row without a frame: each one waits longer before the stream is dropped again. */
+    private val stallsInRow = AtomicInteger(0)
+
     private fun open(c: RvfClient): AviFrameReader {
         val (resp, reader) = c.openStream()
+        this.reader = reader
+        quietUntil = 0 // a new connection: the usual stall rule
         stream = resp
         streamOpens.incrementAndGet()
         lastFrameAt.set(System.currentTimeMillis())
@@ -228,7 +237,13 @@ class CameraSession(
         while (!closed.get()) {
             val frame = reader.next() ?: return
             lastFrameAt.set(System.currentTimeMillis())
+            stallsInRow.set(0)
             frames.incrementAndGet()
+            if (!live.get()) {
+                // the same connection goes on after a picture (NX1000): the shutter is back
+                setLive(true)
+                if (endedByShot.getAndSet(false)) command { listener.onReady(shutterUsable()) }
+            }
             if (!announced) { announced = true; listener.onStream(reader.codec, reader.width, reader.height) }
             listener.onFrame(frame, reader.codec)
         }
@@ -237,9 +252,14 @@ class CameraSession(
     /** No frame for [stallMs] while no picture is being taken: drop the stream, the pump opens it again. */
     private fun watchStall() {
         if (closed.get() || capturing.get() || stream == null) return
-        if (System.currentTimeMillis() - lastFrameAt.get() > stallMs) {
-            log("live view stalled, opening it again")
-            lastFrameAt.set(System.currentTimeMillis())
+        val now = System.currentTimeMillis()
+        if (now < quietUntil) return
+        val limit = stallMs * (1 + minOf(stallsInRow.get(), 5))
+        val silent = now - maxOf(lastFrameAt.get(), quietUntil)
+        if (silent > limit) {
+            stallsInRow.incrementAndGet()
+            log("live view stalled: no picture for ${silent / 1000} s (${reader?.bytesRead ?: 0} bytes on this connection), opening it again")
+            lastFrameAt.set(now)
             runCatching { stream?.close() }
         }
     }
@@ -326,6 +346,7 @@ class CameraSession(
             streamEnded = true
             endedByShot.set(true)
             setLive(false)
+            quietUntil = System.currentTimeMillis() + afterShotQuietMs
             val url = shot.url
             when {
                 url == null -> listener.onNotice(if (options.savePictures) Notice.NO_PICTURE else Notice.ON_CARD_ONLY)

@@ -104,6 +104,13 @@ class RvfCameraSimulator(
     @Volatile var availShots = 999
     /** Answer Shot with an empty AFSHOTRESULT (the picture is taken but not named). */
     @Volatile var emptyShotResult = false
+    /**
+     * As seen on an NX1000: Shot does not end the live-view connection; the camera sends no frames
+     * for this long (it shows the picture) and then goes on on the same connection. 0 = the stream
+     * is ended for the picture.
+     */
+    @Volatile var shotPauseMs = 0L
+    @Volatile private var pausedUntil = 0L
     /** Keep the live-view connection open but stop sending frames. */
     @Volatile var stallStream = false
     /** GetInfomation ROTATION. */
@@ -242,7 +249,10 @@ class RvfCameraSimulator(
             }
             if ((action == "Shot" || action == "ShotWithGPS") && failShots) return fault(803, "Capture Failed")
             val reply = answer(action, body)
-            if (action == "Shot" || action == "ShotWithGPS") endStreams() // the camera stops the live view to take the picture
+            if (action == "Shot" || action == "ShotWithGPS") {
+                if (shotPauseMs > 0) pausedUntil = System.currentTimeMillis() + shotPauseMs
+                else endStreams() // the camera stops the live view to take the picture
+            }
             return HttpResponse.xml(Upnp.soapResponse(action, reply))
         } finally { busy.set(false) }
     }
@@ -307,7 +317,7 @@ class RvfCameraSimulator(
                 out.write(AviFrameReader.header(width, height, codec))
                 var i = 0
                 while (running.get() && !s.isClosed) {
-                    if (stallStream) {
+                    if (stallStream || System.currentTimeMillis() < pausedUntil) {
                         // no frames, but notice when the client gives up on the connection
                         s.soTimeout = 50
                         val gone = try { s.getInputStream().read() < 0 } catch (_: java.net.SocketTimeoutException) { false }

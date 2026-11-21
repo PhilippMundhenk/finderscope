@@ -66,7 +66,7 @@ class ConformanceTest {
         val cs = CameraSession(
             "127.0.0.1", s.controlPort, "02:11:22:33:44:55", ev,
             notices = if (notices) { cb -> SsdpNotices(socket!!, cb).start() } else null,
-            stallMs = stallMs, reopenTimeoutMs = 10_000, modePort = s.modePort,
+            stallMs = stallMs, reopenTimeoutMs = 10_000, modePort = s.modePort, log = { ev.log += "log:$it" },
         ).start()
         sessions += cs
         waitFor(what = "ready") { ev.ready }
@@ -296,6 +296,43 @@ class ConformanceTest {
         s.stallStream = false
         waitFor { ev.has("notice:RECONNECTED") }
         assertFalse(cs.isClosed)
+    }
+
+    /**
+     * NX1000 (seen on the real camera): after Shot the live-view connection stays open but silent
+     * while the camera shows the picture, then goes on. Not a stall: the same connection is kept
+     * and the shutter comes back with its frames.
+     */
+    @Test
+    fun streamPausesForThePicture() {
+        val s = camera().apply { shotPauseMs = 2_500 }
+        val (cs, ev) = session(s, stallMs = 1_000)
+        waitFor { cs.frames.get() > 0 }
+        cs.tap()
+        waitFor(what = "picture") { ev.pictures.isNotEmpty() }
+        val before = cs.frames.get()
+        waitFor(what = "frames again", timeoutMs = 10_000) { cs.frames.get() > before + 5 }
+        waitFor(what = "shutter back") { ev.log.count { it == "ready:true" } >= 2 }
+        assertEquals(1, s.streamOpens.get())
+        assertFalse(ev.log.toString(), ev.log.any { it.contains("stalled") })
+        cs.tap() // the next picture works on the same connection
+        waitFor(what = "second picture", timeoutMs = 10_000) { ev.pictures.size == 2 }
+    }
+
+    /** A stream that stays silent after reopening is dropped less and less often, and the log says how much came. */
+    @Test
+    fun repeatedStallsBackOff() {
+        val s = camera()
+        val (cs, ev) = session(s, stallMs = 500)
+        waitFor { cs.frames.get() > 0 }
+        s.stallStream = true
+        waitFor(what = "three opens", timeoutMs = 10_000) { s.streamOpens.get() >= 3 }
+        val t2 = System.currentTimeMillis()
+        waitFor(what = "fourth open", timeoutMs = 10_000) { s.streamOpens.get() >= 4 }
+        assertTrue("backs off", System.currentTimeMillis() - t2 > 1_000)
+        assertTrue(ev.log.toString(), ev.log.any { it.contains("bytes on this connection") })
+        s.stallStream = false
+        waitFor { ev.has("notice:RECONNECTED") }
     }
 
     /** 20 + 23: SSDP notices: rotation turns the view, a goodbye ends the session; other cameras' notices are ignored. */

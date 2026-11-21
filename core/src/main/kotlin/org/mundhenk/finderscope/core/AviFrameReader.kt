@@ -18,7 +18,15 @@ class VideoFrame(val data: ByteArray, val keyFrame: Boolean, val index: Long)
  * `##db` chunks inside `movi`; everything else (JUNK, idx1, audio) is skipped.
  */
 class AviFrameReader(input: InputStream, private val maxFrameBytes: Int = 8 * 1024 * 1024) {
-    private val input = DataInputStream(input)
+    private val counted = object : java.io.FilterInputStream(input) {
+        override fun read(): Int = super.read().also { if (it >= 0) bytesRead++ }
+        override fun read(b: ByteArray, off: Int, len: Int): Int = super.read(b, off, len).also { if (it > 0) bytesRead += it }
+        override fun skip(n: Long): Long = super.skip(n).also { if (it > 0) bytesRead += it }
+    }
+    private val input = DataInputStream(counted)
+
+    /** Bytes received so far (for the log when a stream stalls). */
+    @Volatile var bytesRead = 0L; private set
     private var started = false
     private var frames = 0L
 

@@ -26,7 +26,7 @@ conformance scenarios the tests check. The wire protocol itself is in [PROTOCOL.
 | After a picture | Live view restarted, small preview shown; saved only on request, re-encoded, EXIF lost | Live view restarted, preview shown; optional automatic save of the camera's own bytes (EXIF kept), full size where the camera offers it |
 | Card full / numbering exhausted | Message, shutter off; at connect the app quits | Message, shutter off, session stays (view still works) |
 | Errors | Every failed camera command ends the app; no reconnect anywhere | A failed command is reported and can be retried; a lost live view or Wi-Fi blip reconnects on its own |
-| Stalled live view | Noticed after 10–20 s, app quits | Noticed after a few seconds, live view reopened |
+| Stalled live view | Noticed after 10–20 s, app quits | Noticed after a few seconds (longer after a picture, and longer with each stall in a row), live view reopened; the log says how many bytes came on the stalled connection |
 | Leaving the app | Session keeps running in the background until an idle timer (10 min, silent) | Session closed when the screen is left, resumed automatically on return |
 | Phone battery | Quits at 7 % | Not the app's business |
 | Without a camera | Nothing | Demo mode with a built-in simulated camera |
@@ -59,6 +59,10 @@ conformance scenarios the tests check. The wire protocol itself is in [PROTOCOL.
   the new picture on the card and the remaining shots. The live view is opened again, then the
   small copy (`<picture>_SM`) is fetched and shown. An empty picture name left the original
   stuck with no live view.
+* On a real NX1000 the live-view connection is not ended by the shot: it stays open and sends
+  nothing for a few seconds while the camera shows the picture, then goes on. Connections opened
+  during that pause got nothing either. finderscope keeps the connection, treats up to 20 s of
+  silence after a picture as normal, and brings the shutter back with the first new frame.
 * Remaining shots 0 = card full, -1 = folder / file numbering exhausted.
 
 ## Rotation (original)

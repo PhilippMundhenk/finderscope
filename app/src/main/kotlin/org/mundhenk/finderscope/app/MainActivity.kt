@@ -185,6 +185,9 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         }
     }
 
+    /** How long to wait for a camera that is not answering yet (tests shorten it). */
+    internal var findTimeoutMs = 60_000L
+
     internal fun rememberCamera(ssid: String, bssid: String?) {
         if (ssid == prefs.cameraSsid && (bssid ?: "") == prefs.cameraBssid) return
         prefs.cameraSsid = ssid; prefs.cameraBssid = bssid ?: ""
@@ -233,7 +236,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
                 wifi.bind(SsdpNotices.multicast(), host).use { SsdpSearch.search(it, t, log = { m -> LogBus.log(m) }) }
             }.getOrNull()
         }
-        val s = CameraSession(host, port, prefs.clientId, this, RvfHttp(wifi.socketFactory(host)), notices, log = { LogBus.log(it) }, discover = discover)
+        val s = CameraSession(host, port, prefs.clientId, this, RvfHttp(wifi.socketFactory(host)), notices, log = { LogBus.log(it) }, discover = discover, findTimeoutMs = findTimeoutMs)
         s.options = CameraSession.Options(savePictures = prefs.savePictures, gps = if (prefs.gpsTag) ({ location() }) else null)
         session = s
         s.start()

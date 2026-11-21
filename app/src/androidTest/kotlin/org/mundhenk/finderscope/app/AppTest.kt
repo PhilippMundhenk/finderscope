@@ -373,7 +373,7 @@ class AppTest {
                 // the camera network request, answered by the test instead of the system's picker:
                 // first no network (picker cancelled), then the phone's own Wi-Fi as "the camera network"
                 var answer: (android.net.ConnectivityManager.NetworkCallback) -> Unit = { it.onUnavailable() }
-                sc.onActivity { act -> act.wifi.requester = { _, cb -> answer(cb) } }
+                sc.onActivity { act -> act.wifi.requester = { _, cb -> answer(cb) }; act.findTimeoutMs = 5_000 }
                 onView(withId(R.id.joinWifi)).perform(tap())
                 waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_unavailable))) }
                 val wifiNetwork = context.getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
