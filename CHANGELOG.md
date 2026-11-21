@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-11-21
+
 ### Fixed
 - A camera network seen in the scan but not joined by Android (field log: seen, then nothing)
   is asked for again, up to three times, each with a 30 s limit; every request is logged.
