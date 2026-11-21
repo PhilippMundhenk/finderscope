@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-11-21
+
 ### Fixed
 - Turning the camera still did not turn the picture: finderscope joined the multicast group for
   the camera's notices on the phone's default network (mobile data or home Wi-Fi), never on the
