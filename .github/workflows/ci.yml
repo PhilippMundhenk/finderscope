@@ -82,6 +82,20 @@ jobs:
           # wait for a healthy adb device, close the launcher popup, run the suite + gate with one
           # retry on window-focus loss, and keep screenshots / focused window / logcat as artifacts
           script: tools/ci-emulator-tests.sh
+      - name: Publish the documentation screenshots on the screenshots branch (main only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          ls app/build/screenshots/*.png >/dev/null 2>&1 || { echo "no screenshots"; exit 0; }
+          mkdir -p /tmp/shots && cp app/build/screenshots/*.png /tmp/shots/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --orphan screenshots
+          git rm -rq --cached . >/dev/null 2>&1 || true
+          git clean -fdxq -e app/build
+          cp /tmp/shots/*.png .
+          git add *.png
+          git commit -qm "Screenshots from ${GITHUB_SHA::7} (demo camera, CI emulator)"
+          git push -fq origin screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:

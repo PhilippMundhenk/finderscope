@@ -55,6 +55,11 @@ for attempt in 1 2; do
   fi
 done
 
+# documentation screenshots taken by ScreenshotTest (demo camera)
+mkdir -p app/build/screenshots
+adb pull /data/local/tmp/finderscope-shots/. app/build/screenshots/ >/dev/null 2>&1 || true
+ls -la app/build/screenshots || true
+
 # what was on screen and in focus when the run ended, plus the full logcat
 adb exec-out screencap -p > "$DIAG/after.png" || true
 adb shell dumpsys window 2>/dev/null | grep -E "mCurrentFocus|mFocusedApp" > "$DIAG/focus.txt" || true
