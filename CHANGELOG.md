@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Changed
+- Settings in framed groups with headings: Taking pictures, Pictures on the phone, Connection,
+  About.
 - Start screen, README and docs: Join and Remote Viewfinder can be started in either order (the
   "wait for Cancel, then 5 s" advice is no longer needed).
 

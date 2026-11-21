@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Settings in framed groups: a heading in the accent colour above each card, dividers between the
+     entries inside a card (like Android's own settings). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root"
@@ -24,105 +26,167 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="24dp">
 
+            <!-- Taking pictures -->
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/shutter_title"
-                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                style="@style/Finderscope.SettingsHeading"
+                android:text="@string/section_shutter" />
 
-            <RadioGroup
-                android:id="@+id/shutterMode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+            <com.google.android.material.card.MaterialCardView style="@style/Finderscope.SettingsCard">
 
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/shutterHold"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/shutter_hold" />
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                <com.google.android.material.radiobutton.MaterialRadioButton
-                    android:id="@+id/shutterTap"
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/shutter_title"
+                        android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                    <RadioGroup
+                        android:id="@+id/shutterMode"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp">
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/shutterHold"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/shutter_hold" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/shutterTap"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/shutter_tap" />
+                    </RadioGroup>
+
+                    <TextView
+                        style="@style/Finderscope.SettingsHint"
+                        android:text="@string/shutter_mode_hint" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Pictures on the phone -->
+            <TextView
+                style="@style/Finderscope.SettingsHeading"
+                android:text="@string/section_pictures" />
+
+            <com.google.android.material.card.MaterialCardView style="@style/Finderscope.SettingsCard">
+
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/shutter_tap" />
-            </RadioGroup>
+                    android:orientation="vertical">
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/savePictures"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/save_pictures"
+                            android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                        <TextView
+                            style="@style/Finderscope.SettingsHint"
+                            android:text="@string/save_pictures_hint" />
+                    </LinearLayout>
+
+                    <com.google.android.material.divider.MaterialDivider
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:dividerInsetEnd="16dp"
+                        app:dividerInsetStart="16dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/gpsTag"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/gps_tag"
+                            android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                        <TextView
+                            style="@style/Finderscope.SettingsHint"
+                            android:text="@string/gps_tag_hint" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Connection -->
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:text="@string/shutter_mode_hint"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                style="@style/Finderscope.SettingsHeading"
+                android:text="@string/section_connection" />
 
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/savePictures"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/save_pictures" />
+            <com.google.android.material.card.MaterialCardView style="@style/Finderscope.SettingsCard">
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:id="@+id/awayLabel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?attr/textAppearanceTitleSmall" />
+
+                    <com.google.android.material.slider.Slider
+                        android:id="@+id/awayMinutes"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="@string/away_title"
+                        android:stepSize="1"
+                        android:valueFrom="0"
+                        android:valueTo="30" />
+
+                    <TextView
+                        style="@style/Finderscope.SettingsHint"
+                        android:text="@string/away_hint" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- About -->
             <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/save_pictures_hint"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                style="@style/Finderscope.SettingsHeading"
+                android:text="@string/section_about" />
 
-            <com.google.android.material.materialswitch.MaterialSwitch
-                android:id="@+id/gpsTag"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/gps_tag" />
+            <com.google.android.material.card.MaterialCardView style="@style/Finderscope.SettingsCard">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/gps_tag_hint"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-            <TextView
-                android:id="@+id/awayLabel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                    <TextView
+                        android:id="@+id/version"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textAppearance="?attr/textAppearanceTitleSmall" />
 
-            <com.google.android.material.slider.Slider
-                android:id="@+id/awayMinutes"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:contentDescription="@string/away_title"
-                android:stepSize="1"
-                android:valueFrom="0"
-                android:valueTo="30" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/away_hint"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <TextView
-                android:id="@+id/version"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/disclaimer"
-                android:textAppearance="?attr/textAppearanceBodySmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        style="@style/Finderscope.SettingsHint"
+                        android:text="@string/disclaimer" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

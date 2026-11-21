@@ -91,4 +91,8 @@
     <string name="status_looking">Looking for the camera\'s Wi-Fi…</string>
     <string name="status_looking_hint">Start Remote Viewfinder on the camera. finderscope joins its network as soon as it appears (up to 3 minutes).</string>
     <string name="wifi_not_seen">No camera network appeared within 3 minutes. Is Remote Viewfinder on? If the phone does not see it, join it in the Wi-Fi settings: finderscope connects when you come back.</string>
+    <string name="section_shutter">Taking pictures</string>
+    <string name="section_pictures">Pictures on the phone</string>
+    <string name="section_connection">Connection</string>
+    <string name="section_about">About</string>
 </resources>
