@@ -108,6 +108,18 @@ the server is up. finderscope first tries the gateway on :7676; while that is re
 out it sends a search every second and uses the first answer (or NOTIFY) that names a
 MediaServer description, for up to 60 s.
 
+## What the NX1000 firmware shows
+
+Messages and names in the NX1000 firmware (1.15) confirm what the real camera did:
+
+* The camera's HTTP server is started only after its media database and configuration files
+  are checked, so :7676 refuses connections for a while after the network is up.
+* The live-view sender has a pause and a resume besides start and stop: around a picture the
+  stream is paused on the same connection, not ended. How long probably follows the camera's
+  *Quick View* setting (off, 1, 3, 5 s, hold); with *hold* the stream may stay silent until the
+  camera leaves the review.
+* A new stream connection gets nothing until the sender has a header (key) frame for it.
+
 ## SSDP notices while connected
 
 While a session runs, the camera multicasts SSDP NOTIFYs (239.255.255.250:1900) about its

@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-21
+
 ### Added
 - Remembers the camera network: next time **Connect to <model>** asks Android for exactly that
   network, which Android approves without its dialog; **Other camera** for a different one. Needs
