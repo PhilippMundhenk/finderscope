@@ -30,7 +30,15 @@ class CameraWifi(private val context: Context) {
     @Volatile var network: Network? = null; private set
 
     /** Hands the request to Android (which shows its network picker); the UI tests answer it themselves. */
-    var requester: (NetworkRequest, ConnectivityManager.NetworkCallback) -> Unit = { r, cb -> cm.requestNetwork(r, cb) }
+    var requester: (NetworkRequest, ConnectivityManager.NetworkCallback) -> Unit = { r, cb ->
+        // a network asked for by name gets an answer within [namedTimeoutMs] (onUnavailable), so a
+        // request Android silently drops is noticed; the picker waits for the user as long as it takes
+        if (named) cm.requestNetwork(r, cb, namedTimeoutMs) else cm.requestNetwork(r, cb)
+    }
+
+    /** How long Android gets to connect to a camera network asked for by name. */
+    var namedTimeoutMs = 30_000
+    private var named = false
 
     /**
      * Asks Android for the camera network. Without [known] the system shows the camera networks
@@ -45,6 +53,8 @@ class CameraWifi(private val context: Context) {
         release()
         // [known]: a network by name (remembered, or just found by [findCamera]); none: Android's picker
         val target = known
+        named = target != null
+        LogBus.log(if (target != null) "asking Android for the camera network ${CameraModel.parse(target.first).name}" else "asking Android's picker for a camera network")
         val builder = WifiNetworkSpecifier.Builder()
         if (target != null) {
             builder.setSsid(target.first)

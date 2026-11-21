@@ -155,7 +155,12 @@
                         android:contentDescription="@string/away_title"
                         android:stepSize="1"
                         android:valueFrom="0"
-                        android:valueTo="30" />
+                        android:valueTo="30"
+                        app:thumbColor="@color/primary"
+                        app:tickColorActive="@color/on_primary"
+                        app:tickColorInactive="@color/primary"
+                        app:trackColorActive="@color/primary"
+                        app:trackColorInactive="@color/primary_container" />
 
                     <TextView
                         style="@style/Finderscope.SettingsHint"

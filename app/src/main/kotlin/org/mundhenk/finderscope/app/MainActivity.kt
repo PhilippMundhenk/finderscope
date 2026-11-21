@@ -215,12 +215,17 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     internal var findWifiMs = 3 * 60_000L
 
     /** Asks Android for the camera network: by name where known, else with its picker. */
-    private fun requestCameraWifi(target: Pair<String, String?>?) {
+    private fun requestCameraWifi(target: Pair<String, String?>?, attempt: Int = 1) {
         b.status.setText(R.string.status_joining)
         b.statusHint.setText(R.string.joining_wifi)
         wifi.join(target, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }, onLost = { runOnUiThread { cameraWifiLost() } }) { network ->
             runOnUiThread {
                 if (!joining) return@runOnUiThread // cancelled meanwhile
+                if (network == null && target != null && attempt < NAMED_ATTEMPTS) {
+                    // seen in the scan but not joined (Android dropped or timed out the request): once more
+                    LogBus.log("Android did not connect to the camera network, asking again")
+                    requestCameraWifi(target, attempt + 1); return@runOnUiThread
+                }
                 joining = false
                 if (network == null) {
                     b.status.setText(R.string.status_idle); b.statusHint.setText(R.string.wifi_unavailable)
@@ -735,5 +740,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         const val CONTROLS_SIDE = 112
         const val CONTROLS_ZOOM = 176
         const val NOTICE_MS = 4_000L
+        /** Requests for a camera network seen in the scan before giving up. */
+        const val NAMED_ATTEMPTS = 3
     }
 }

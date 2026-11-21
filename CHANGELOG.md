@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- A camera network seen in the scan but not joined by Android (field log: seen, then nothing)
+  is asked for again, up to three times, each with a 30 s limit; every request is logged.
+
 ### Changed
 - Settings in framed groups with headings: Taking pictures, Pictures on the phone, Connection,
   About.

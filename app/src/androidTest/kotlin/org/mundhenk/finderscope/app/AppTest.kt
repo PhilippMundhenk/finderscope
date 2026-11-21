@@ -597,10 +597,13 @@ class AppTest {
             onView(withId(R.id.joinWifi)).perform(tap())
             waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_unavailable))) }
             assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
+            // a network seen but not joined is asked for three times before giving up
+            assertEquals(MainActivity.NAMED_ATTEMPTS, requests.size)
+            assertTrue(LogBus.snapshot().any { it.contains("asking again") })
             // "Other camera": any camera network, here another one
             sc.onActivity { a -> a.wifi.scanResults = { listOf(Triple("AP_SSC_WB250F_0-DD:EE:FF", "02:66:77:88:99:00", 2L)) } }
             onView(withId(R.id.otherCamera)).perform(tap())
-            waitFor { requests.size == 2 }
+            waitFor { requests.size == 2 * MainActivity.NAMED_ATTEMPTS }
             assertTrue(requests.toString(), requests.last().contains("AP_SSC_WB250F_0-DD:EE:FF"))
             // a newly joined camera replaces the remembered one
             sc.onActivity { it.rememberCamera("AP_SSC_WB250F_0-DD:EE:FF", null) }
@@ -640,7 +643,7 @@ class AppTest {
                     a.wifi.scanResults = { if (polls.incrementAndGet() < 5) listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L)) else listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L), Triple("AP_SSC_NX1000_0-AA:BB:CC", "02:11:22:33:44:55", 3L)) }
                 }
                 onView(withId(R.id.joinWifi)).perform(tap())
-                waitFor { requests.size == 2 }
+                waitFor { requests.size == 2 * MainActivity.NAMED_ATTEMPTS }
                 assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
                 assertTrue(polls.get() >= 5)
                 assertTrue(LogBus.snapshot().any { it.contains("no camera network yet") })
@@ -648,7 +651,7 @@ class AppTest {
                 sc.onActivity { a -> a.findWifiMs = 500; a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L)) } }
                 onView(withId(R.id.joinWifi)).perform(tap())
                 waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_not_seen))) }
-                assertEquals(2, requests.size)
+                assertEquals(2 * MainActivity.NAMED_ATTEMPTS, requests.size)
                 // the Wi-Fi settings, and back: not on a camera network (the emulator's own Wi-Fi), or connecting
                 intending(hasAction(android.provider.Settings.Panel.ACTION_WIFI)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
                 onView(withId(R.id.wifiSettings)).perform(tap())
