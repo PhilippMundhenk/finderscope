@@ -355,6 +355,9 @@ class AppTest {
                 waitFor(what = "finderscope in front") { device.currentPackageName == context.packageName }
                 sc.onActivity { assertNotNull(it.wifi.socketFactory("192.168.102.1")); it.wifi.gateway() }
 
+                // the screens themselves are tested in settingsAndLog: here only that the menu opens them
+                intending(hasComponent(SettingsActivity::class.java.name)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+                intending(hasComponent(LogActivity::class.java.name)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
                 onView(withId(R.id.action_settings)).perform(tap())
                 intended(hasComponent(SettingsActivity::class.java.name))
                 openActionBarOverflowOrOptionsMenu(context)

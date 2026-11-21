@@ -292,13 +292,14 @@ class CameraSession(
             streamEnded = true
             endedByShot.set(true)
             setLive(false)
-            shot.availShots?.let { shotsChanged(it) }
             val url = shot.url
             when {
                 url == null -> listener.onNotice(if (options.savePictures) Notice.NO_PICTURE else Notice.ON_CARD_ONLY)
                 !options.savePictures -> listener.onNotice(Notice.ON_CARD_ONLY)
                 else -> try { listener.onPicture(c.downloadShot(url)) } catch (e: IOException) { listener.onNotice(Notice.ON_CARD_ONLY, e.message ?: "") }
             }
+            // after the picture: "card full" must not be covered by the "saved" message
+            shot.availShots?.let { shotsChanged(it) }
         } finally {
             capturing.set(false)
             synchronized(captureDone) { captureDone.notifyAll() }
