@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-11-21
+
 ### Fixed
 - Live view delayed by 0.5 to 1 s and jerky (field log: 15 frames/s from the camera, "decoder
   553 ms"): the camera's H.264 header does not say that frames are never reordered, so phone
