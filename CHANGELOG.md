@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-11-21
+
 ### Added
 - *Settings → Shutter → Tap to focus*: a tap on the live view focuses and keeps the focus (a
   second tap focuses anew), the shutter and the volume keys take the picture. Hold to focus
