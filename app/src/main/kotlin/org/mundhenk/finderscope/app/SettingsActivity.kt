@@ -22,6 +22,7 @@ class SettingsActivity : AppCompatActivity() {
         b = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(b.root)
         setSupportActionBar(b.toolbar)
+        EdgeToEdge.apply(this, b.root, b.toolbar)
         b.toolbar.setNavigationOnClickListener { finish() }
         b.savePictures.isChecked = prefs.savePictures
         b.savePictures.setOnCheckedChangeListener { _, on -> prefs.savePictures = on }

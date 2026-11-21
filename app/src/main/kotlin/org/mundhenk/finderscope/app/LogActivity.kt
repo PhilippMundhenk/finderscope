@@ -16,6 +16,7 @@ class LogActivity : AppCompatActivity() {
         b = ActivityLogBinding.inflate(layoutInflater)
         setContentView(b.root)
         setSupportActionBar(b.toolbar)
+        EdgeToEdge.apply(this, b.root, b.toolbar)
         b.toolbar.setNavigationOnClickListener { finish() }
     }
 
