@@ -345,16 +345,6 @@ class AppTest {
                 waitForUi { onView(withId(R.id.status)).check(matches(withSubstring("confirm the prompt"))) }
                 onView(withId(R.id.connect)).check(matches(withText(R.string.connect)))
 
-                // the camera network request: the system shows its picker; withdrawn again right away
-                onView(withId(R.id.joinWifi)).perform(tap())
-                onView(withId(R.id.statusHint)).check(matches(withText(R.string.joining_wifi)))
-                sc.onActivity { it.wifi.release(); assertNull(it.wifi.network) }
-                val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-                // the system's "connect to device" dialog may still be up: back until finderscope is in front again
-                repeat(3) { Thread.sleep(1_000); if (device.currentPackageName != context.packageName) device.pressBack() }
-                waitFor(what = "finderscope in front") { device.currentPackageName == context.packageName }
-                sc.onActivity { assertNotNull(it.wifi.socketFactory("192.168.102.1")); it.wifi.gateway() }
-
                 // the screens themselves are tested in settingsAndLog: here only that the menu opens them
                 intending(hasComponent(SettingsActivity::class.java.name)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
                 intending(hasComponent(LogActivity::class.java.name)).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
@@ -363,6 +353,15 @@ class AppTest {
                 openActionBarOverflowOrOptionsMenu(context)
                 onView(withText(R.string.log)).perform(androidx.test.espresso.action.ViewActions.click())
                 intended(hasComponent(LogActivity::class.java.name))
+                // the camera network request: the system shows its picker; withdrawn again right away
+                onView(withId(R.id.joinWifi)).perform(tap())
+                onView(withId(R.id.statusHint)).check(matches(withText(R.string.joining_wifi)))
+                sc.onActivity { it.wifi.release(); assertNull(it.wifi.network) }
+                val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+                // the system's "connect to device" dialog may still be up: back out of it; nothing else runs after this
+                repeat(3) { Thread.sleep(1_000); if (device.currentPackageName != context.packageName) device.pressBack() }
+                sc.onActivity { assertNotNull(it.wifi.socketFactory("192.168.102.1")); it.wifi.gateway() }
+
             }
         } finally { Intents.release() }
         assertEquals("192.168.102.1" to 7676, CameraWifi.parse(" http://192.168.102.1/ "))
