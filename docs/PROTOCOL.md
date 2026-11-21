@@ -131,6 +131,10 @@ words; addresses and details are kept outside this repository.
 * **The header says nothing about the picture.** It is a constant: 320x240, 15 fps, `H264`,
   RIFF and `movi` sizes 0, `hdrl`/`strl` sizes filled in. The real picture size is in the H.264
   SPS (the decoder reports it).
+* **Decoding without delay.** The stream has no B-frames, but a decoder only knows that from
+  the VUI bitstream restriction in the SPS (`max_num_reorder_frames`). Without it phone decoders
+  buffer frames: 0.5 to 1 s of delay was measured with an NX1000. finderscope adds the
+  restriction (reorder 0) to every SPS before decoding.
 * **New connections** get nothing until the next header; frames before it are dropped.
 * **One reader.** There is a single frame hand-over between encoder and network without
   per-client state; a second stream connection restarts the encoder for both.

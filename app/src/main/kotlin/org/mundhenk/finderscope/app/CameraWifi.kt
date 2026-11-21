@@ -41,7 +41,7 @@ class CameraWifi(private val context: Context) {
      * none came; [onIdentified] the name and hardware address of the network joined, where Android
      * tells them (it needs the location permission for that).
      */
-    fun join(known: Pair<String, String?>? = null, onIdentified: (String, String?) -> Unit = { _, _ -> }, onResult: (Network?) -> Unit) {
+    fun join(known: Pair<String, String?>? = null, onIdentified: (String, String?) -> Unit = { _, _ -> }, onLost: () -> Unit = {}, onResult: (Network?) -> Unit) {
         release()
         // Android's picker only lists what its own scan finds, and that sometimes stays empty
         // (field test: camera network up, picker searching forever). The phone's last scan
@@ -73,7 +73,8 @@ class CameraWifi(private val context: Context) {
                 }
                 Event.CAPABILITIES -> identify(caps?.transportInfo as? WifiInfo)
                 Event.UNAVAILABLE -> { network = null; onResult(null) }
-                Event.LOST -> if (n == network) network = null
+                // the camera switched off or out of range
+                Event.LOST -> if (n == network) { network = null; onLost() }
             }
         }
         callback = cb

@@ -391,8 +391,14 @@ class AppTest {
                 if (wifiNetwork != null) {
                     answer = { cb -> cb.onAvailable(wifiNetwork); cb.onLost(wifiNetwork) }
                     onView(withId(R.id.joinWifi)).perform(tap())
-                    // the gateway is no camera: the attempt ends with a failure message, back on the start screen
+                    // the network is lost right after it came (camera switched off): the attempt ends with that message
+                    waitForUi { onView(withId(R.id.status)).check(matches(withText(R.string.camera_wifi_lost))) }
+                    assertTrue(LogBus.snapshot().any { it.contains("the camera's Wi-Fi is gone") })
+                    // available and staying: the gateway is no camera, the attempt ends with a failure message
+                    answer = { cb -> cb.onAvailable(wifiNetwork) }
+                    onView(withId(R.id.joinWifi)).perform(tap())
                     waitForUi(45_000) { onView(withId(R.id.status)).check(matches(withSubstring(context.getString(R.string.failed, "").trim()))) }
+                    sc.onActivity { it.cameraWifiLost() } // nothing running any more: nothing to end
                 }
                 sc.onActivity { it.wifi.release(); assertNull(it.wifi.network) }
                 sc.onActivity { assertNotNull(it.wifi.socketFactory("192.168.102.1")); it.wifi.gateway() }

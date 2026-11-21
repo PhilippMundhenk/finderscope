@@ -4,6 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaFormat
 import android.view.Surface
 import org.mundhenk.finderscope.core.H264ParameterSets
+import org.mundhenk.finderscope.core.H264Sps
 import org.mundhenk.finderscope.core.VideoFrame
 import java.util.concurrent.atomic.AtomicLong
 
@@ -36,7 +37,10 @@ class H264Decoder(
         // live view: every frame out as soon as it is decoded, no reordering buffer, real-time priority
         if (android.os.Build.VERSION.SDK_INT >= 30) format.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
         format.setInteger(MediaFormat.KEY_PRIORITY, 0)
-        codec.configure(format, surface, null, 0)
+        // the chip makers' own switches for the same (ignored by decoders that do not know them;
+        // should one refuse them, the decoder starts without)
+        val tuned = MediaFormat(format).apply { for (key in VENDOR_LOW_LATENCY) setInteger(key, 1) }
+        try { codec.configure(tuned, surface, null, 0) } catch (e: RuntimeException) { codec.reset(); codec.configure(format, surface, null, 0) }
         codec.start()
         started = true
         // pictures are shown the moment the decoder has them, not when the next frame comes in
@@ -46,7 +50,9 @@ class H264Decoder(
     fun feed(frame: VideoFrame, ptsUs: Long) {
         // a decoder needs SPS/PPS and a key frame first; the remembered parameter sets go in front of it
         if (!keySeen && (!frame.keyFrame || !parameterSets.known)) return
-        val data = if (!keySeen) parameterSets.prime(frame.data) else frame.data
+        // the SPS says "no reordering": the decoder hands out each frame at once instead of
+        // filling its picture buffer first (that was 0.5 to 1 s on a phone with the NX1000)
+        val data = H264Sps.lowLatencyFrame(if (!keySeen) parameterSets.prime(frame.data) else frame.data)
         keySeen = true
         val idx = codec.dequeueInputBuffer(100_000)
         if (idx >= 0) {
@@ -85,6 +91,16 @@ class H264Decoder(
             l
         }
         onStats(line)
+    }
+
+    private companion object {
+        val VENDOR_LOW_LATENCY = listOf(
+            "vendor.qti-ext-dec-low-latency.enable", // Qualcomm
+            "vendor.qti-ext-dec-picture-order.enable",
+            "vendor.rtc-ext-dec-low-latency.enable", // Samsung Exynos
+            "vendor.low-latency.enable",
+            "vendor.hisi-ext-low-latency-video-dec.video-scene-for-low-latency-req", // HiSilicon
+        )
     }
 
     /** The visible size: the crop rectangle where the decoder gives one, else width x height. */

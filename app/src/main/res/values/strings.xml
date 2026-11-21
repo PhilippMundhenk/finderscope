@@ -82,4 +82,5 @@
     </plurals>
     <string name="away_off">Stay connected in the background: off</string>
     <string name="away_hint">While finderscope is not on screen the camera stays connected for this long, so you can switch apps without the camera leaving Remote Viewfinder. Off: disconnect right away.</string>
+    <string name="camera_wifi_lost">The camera\'s Wi-Fi is gone (camera switched off or out of range).</string>
 </resources>

@@ -196,7 +196,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b.statusHint.setText(R.string.joining_wifi)
         joining = true
         applyBusy()
-        wifi.join(known, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }) { network ->
+        wifi.join(known, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }, onLost = { runOnUiThread { cameraWifiLost() } }) { network ->
             runOnUiThread {
                 if (!joining) return@runOnUiThread // cancelled meanwhile
                 joining = false
@@ -223,6 +223,16 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         if (on) b.joinWifi.setText(R.string.cancel) else showKnownCamera()
         for (v in listOf(b.otherCamera, b.addressToggle, b.address, b.demo, b.wifiSettings)) v.isEnabled = !on
         b.connect.isEnabled = !joining
+    }
+
+    /** The camera's network went away (camera switched off, out of range): the session ends with a clear message. */
+    internal fun cameraWifiLost() {
+        LogBus.log("the camera's Wi-Fi is gone")
+        if (session == null && !busy) return
+        joining = false
+        resumeTarget = null
+        stopSession()
+        showIdle(getString(R.string.camera_wifi_lost), getString(R.string.howto))
     }
 
     /** Back from the Wi-Fi settings: connect if the phone is now on a camera network. */

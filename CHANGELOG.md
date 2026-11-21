@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Live view delayed by 0.5 to 1 s and jerky (field log: 15 frames/s from the camera, "decoder
+  553 ms"): the camera's H.264 header does not say that frames are never reordered, so phone
+  decoders kept a whole buffer of frames before showing any. finderscope now adds that to the
+  header before decoding (and switches on the chip makers' low-latency modes).
+- Switching the camera off while connected was not noticed; finderscope kept trying to reopen
+  the live view. Losing the camera's Wi-Fi now ends the session with a clear message.
+
 ## [0.1.9] - 2026-11-21
 
 ### Fixed
