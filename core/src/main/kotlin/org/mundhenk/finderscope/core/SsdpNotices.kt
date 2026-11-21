@@ -8,8 +8,8 @@ import java.net.InetSocketAddress
 import java.net.MulticastSocket
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** One SSDP NOTIFY: NT (what), NTS (alive / byebye / the cameras' rotation values), USN (who). */
-data class SsdpNotice(val nt: String, val nts: String, val usn: String)
+/** One SSDP NOTIFY: NT (what), NTS (alive / byebye / the cameras' rotation values), USN (who), and the sender's address. */
+data class SsdpNotice(val nt: String, val nts: String, val usn: String, val from: String = "")
 
 /**
  * Listens for the camera's SSDP NOTIFY messages while a session runs: the cameras announce a
@@ -29,7 +29,7 @@ class SsdpNotices(private val socket: DatagramSocket, private val onNotice: (Ssd
             while (running.get()) {
                 val p = DatagramPacket(buf, buf.size)
                 try { socket.receive(p) } catch (e: IOException) { break }
-                parse(String(p.data, 0, p.length, Charsets.ISO_8859_1))?.let(onNotice)
+                parse(String(p.data, 0, p.length, Charsets.ISO_8859_1))?.copy(from = p.address?.hostAddress ?: "")?.let(onNotice)
             }
         }, "ssdp-notices").apply { isDaemon = true }.start()
         return this

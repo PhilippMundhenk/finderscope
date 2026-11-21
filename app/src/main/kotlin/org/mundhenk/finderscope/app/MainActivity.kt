@@ -114,6 +114,12 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         setUpShutter()
         setUpZoom(b.zoomIn, true)
         setUpZoom(b.zoomOut, false)
+        // no surface while away: the decoder goes with it and is made again at the next key frame
+        b.liveSurface.holder.addCallback(object : android.view.SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: android.view.SurfaceHolder) {}
+            override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
+            override fun surfaceDestroyed(holder: android.view.SurfaceHolder) { dropDecoder() }
+        })
         b.finder.addOnLayoutChangeListener { _, l, t, r, btm, ol, ot, or_, ob -> if (r - l != or_ - ol || btm - t != ob - ot) layoutPicture() }
         showIdle(getString(R.string.status_idle), getString(R.string.howto))
     }
@@ -128,6 +134,8 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     override fun onStart() {
         super.onStart()
+        main.removeCallbacks(endWhileAway)
+        if (session != null) decoder?.resync()
         if (b.address.text.isNullOrBlank()) b.address.setText(prefs.address.ifBlank { wifi.gateway() ?: CameraWifi.DEFAULT_CAMERA })
         if (prefs.address.isNotBlank()) showAddress()
         showKnownCamera()
@@ -137,13 +145,21 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     }
 
     override fun onStop() {
-        // the camera's live view must not run on while nobody looks; resumed in onStart
-        val live = session != null
-        stopSession(keepResume = live)
+        // The connection stays: ending it makes the camera leave Remote Viewfinder ("network
+        // disconnected"), and closing the live view at the wrong moment can even hang an NX1000.
+        // Only the picture is not drawn while away; after a long absence the session ends.
+        if (session != null && !isChangingConfigurations) main.postDelayed(endWhileAway, awayMs)
         super.onStop()
     }
 
+    private val endWhileAway = Runnable { LogBus.log("away for ${awayMs / 1000} s: disconnecting"); stopSession(keepResume = true) }
+
+    /** How long the connection is kept while finderscope is not on screen (tests shorten it). */
+    internal var awayMs = AWAY_MS
+
     override fun onDestroy() {
+        main.removeCallbacks(endWhileAway)
+        if (isFinishing) stopSession()
         wifi.release()
         DemoCamera.stop()
         super.onDestroy()
@@ -641,5 +657,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         const val CONTROLS_SIDE = 112
         const val CONTROLS_ZOOM = 176
         const val NOTICE_MS = 4_000L
+        /** How long the connection is kept while finderscope is not on screen. */
+        const val AWAY_MS = 10 * 60_000L
     }
 }

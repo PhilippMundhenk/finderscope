@@ -315,10 +315,14 @@ class RvfCameraSimulator(
     private fun arg(body: String, name: String) = Regex("<$name>(.*?)</$name>", RegexOption.DOT_MATCHES_ALL).find(body)?.groupValues?.get(1) ?: ""
 
     /** Sends the camera's SSDP notice [nts] about its ConnectionManager (rotation, byebye) to [to]. */
-    fun sendNotice(nts: String, to: java.net.InetSocketAddress) {
-        val cm = Upnp.CMS_SERVICE_TYPE
-        val bytes = SsdpNotices.notify(cm, nts, "$udn::$cm", "http://$advertisedHost:$controlPort/smp_2_")
-        java.net.DatagramSocket().use { it.send(java.net.DatagramPacket(bytes, bytes.size, to)) }
+    /**
+     * A NOTIFY like the camera's. [from] is the sender address (another camera = another address);
+     * [usnUuid] / [nt] as the NX1000 sends its turn notices: a fixed UUID that need not be the one
+     * in its description, for the root device as well as for the services.
+     */
+    fun sendNotice(nts: String, to: java.net.InetSocketAddress, from: String = "127.0.0.1", usnUuid: String = udn, nt: String = Upnp.CMS_SERVICE_TYPE) {
+        val bytes = SsdpNotices.notify(nt, nts, "$usnUuid::$nt", "http://$advertisedHost:$controlPort/smp_2_")
+        java.net.DatagramSocket(java.net.InetSocketAddress(from, 0)).use { it.send(java.net.DatagramPacket(bytes, bytes.size, to)) }
     }
 
     private fun fault(code: Int, text: String) = HttpResponse.xml(

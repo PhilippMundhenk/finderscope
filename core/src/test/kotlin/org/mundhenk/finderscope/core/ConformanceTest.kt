@@ -375,8 +375,11 @@ class ConformanceTest {
         val to = InetSocketAddress("127.0.0.1", sock.localPort)
         s.sendNotice("ssdp:rotationL", to)
         waitFor { ev.rotation == Rotation.L }
+        // NX1000: turn notices under a fixed UUID (not the description's) and for the root device
+        s.sendNotice("ssdp:rotationR", to, usnUuid = "uuid:00000000-0000-0000-0000-000000000001", nt = "upnp:rootdevice")
+        waitFor { ev.rotation == Rotation.R }
         val other = sim2()
-        other.sendNotice("ssdp:byebye", to) // another camera
+        other.sendNotice("ssdp:byebye", to, from = "127.0.0.2") // another camera, another address
         Thread.sleep(300)
         assertFalse(cs.isClosed)
         s.sendNotice("ssdp:byebye", to)

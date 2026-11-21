@@ -15,8 +15,8 @@ data class Box(val left: Int, val top: Int, val right: Int, val bottom: Int) {
  * foldable's cover or inner screen, landscape, split screen. Like a camera app: the picture comes
  * first and is never covered when that can be avoided.
  *
- * * [Arrangement.STACKED] (tall windows): the top bar, the picture right below it, the controls
- *   in the space underneath.
+ * * [Arrangement.STACKED] (tall windows): the top bar, the controls at the bottom, the picture
+ *   centred in the space between them.
  * * [Arrangement.SIDE] (wide windows): the settings in a column on the left, the shutter column on
  *   the right, the picture between them.
  * * Only when keeping the picture clear would shrink it below [minShare] of the largest picture
@@ -50,7 +50,8 @@ object ViewfinderLayout {
         val full = fit(usable, aspect, top = false)
         val stackedFree = Box(usable.left, usable.top + barStacked, usable.right, usable.bottom - controlsStacked)
         val sideFree = Box(usable.left + barSide, usable.top, usable.right - controlsSide, usable.bottom)
-        val stacked = fit(stackedFree, aspect, top = true)
+        // centred between the top bar and the controls, like the viewfinder of a camera app
+        val stacked = fit(stackedFree, aspect, top = false)
         val side = fit(sideFree, aspect, top = false)
         val best = if (stacked.area >= side.area) Arrangement.STACKED to stacked else Arrangement.SIDE to side
         if (best.second.area >= minShare * full.area) {

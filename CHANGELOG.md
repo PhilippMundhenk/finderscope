@@ -9,8 +9,17 @@ All notable changes to this project are documented here. The format follows
 ## [0.1.6] - 2026-11-21
 
 ### Changed
+- The live view sits centred between the top bar and the controls instead of right under the bar.
+- Switching to another app no longer disconnects the camera ("network disconnected" on the
+  camera): the connection is kept for up to 10 minutes, only the picture is not drawn.
 - Start screen: wait until the camera shows its **Cancel** button, then 5 more seconds, before
   connecting.
+
+### Fixed
+- Turning the camera to portrait did not turn the picture: the NX1000 sends its turn notices
+  under a fixed ID (seen in its firmware) that need not match its description, and finderscope
+  dropped notices that did not match. Notices
+  are now taken from the camera's address (and logged).
 
 ## [0.1.5] - 2026-11-21
 

@@ -59,6 +59,11 @@ by default.
 
 * Leaving the app ends the session (the camera's screen comes back); returning resumes it.
 * Only one phone can be connected at a time.
+* Switching to another app keeps the connection for up to 10 minutes; the live view is back as
+  soon as finderscope is on screen again. After that finderscope disconnects and reconnects on
+  return (the camera may have left Remote Viewfinder by then).
+* Turning the camera (portrait, upside down) turns the live view on the phone; the camera
+  announces it over the network.
 * After each picture the camera pauses the live view while it shows the picture. Set the camera's
   *Quick View* to off or a short time for a quick return; with *hold* the live view waits for the
   camera.

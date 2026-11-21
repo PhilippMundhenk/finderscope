@@ -333,10 +333,18 @@ class AppTest {
             sc.onActivity { it.session!!.setResolution(1, 1) } // not offered: reported, not sent
             waitForUi { onView(withId(R.id.notice)).check(matches(withSubstring("photo size"))) }
 
-            // leave the screen: the session ends; come back: it resumes
+            // leave the screen briefly: the connection stays (ending it makes the camera leave Remote Viewfinder)
             val opens = s.streamOpens.get()
             sc.moveToState(Lifecycle.State.CREATED)
-            waitFor { s.streamReaders == 0 }
+            Thread.sleep(1_000)
+            assertEquals(1, s.streamReaders); assertEquals(opens, s.streamOpens.get())
+            sc.moveToState(Lifecycle.State.RESUMED)
+            waitForShutter()
+            assertEquals(opens, s.streamOpens.get())
+            // away for long: the session ends, and comes back with the screen
+            sc.onActivity { it.awayMs = 500 }
+            sc.moveToState(Lifecycle.State.CREATED)
+            waitFor(what = "ended while away") { s.streamReaders == 0 }
             sc.moveToState(Lifecycle.State.RESUMED)
             waitFor(what = "resumed") { s.streamOpens.get() > opens }
             waitForShutter()

@@ -177,7 +177,7 @@ class CameraSession(
             model = CameraModel.parse(c.friendlyName.ifBlank { c.modelName })
             noticeListener = notices?.invoke { onNotice(it) }
             info.availShots?.let { shotsChanged(it) }
-            listener.onRotation(Rotation.fromInfo(info.rotation, model.name))
+            Rotation.fromInfo(info.rotation, model.name).also { lastRotation = it; listener.onRotation(it) }
             listener.onConnected(c, info, model)
             listener.onState(State.LIVE, c.friendlyName.ifBlank { host })
             if (c.has("HeartBeat")) commands.scheduleWithFixedDelay({ if (!capturing.get()) runCatching { c.heartBeat() } }, 3, 3, TimeUnit.SECONDS)
@@ -314,12 +314,20 @@ class CameraSession(
         }
     }
 
+    @Volatile private var lastNoticeNts = ""
+    @Volatile private var lastRotation: Rotation? = null
+
     private fun onNotice(n: SsdpNotice) {
         val c = client ?: return
-        if (c.udn.isEmpty() || !n.usn.contains(c.udn.removePrefix("uuid:"))) return
+        // the camera by its address; the NX1000 sends its turn notices under a fixed UUID that need
+        // not be the one in its description, and for several device / service types
+        val fromCamera = n.from == host || (c.udn.isNotEmpty() && n.usn.contains(c.udn.removePrefix("uuid:")))
+        if (!fromCamera) return
+        val rotation = Rotation.fromNotice(n.nts)
+        if (n.nts != lastNoticeNts) { lastNoticeNts = n.nts; log("SSDP from the camera: ${n.nts} (${n.nt})") }
         when {
             n.nts.equals("ssdp:byebye", ignoreCase = true) -> end("The camera ended the connection")
-            n.nt.contains("ConnectionManager") -> Rotation.fromNotice(n.nts)?.let { listener.onRotation(it) }
+            rotation != null && rotation != lastRotation -> { lastRotation = rotation; listener.onRotation(rotation) }
         }
     }
 

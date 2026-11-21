@@ -22,11 +22,13 @@ class ViewfinderLayoutTest {
         barStacked = dp(56), barSide = dp(72), controlsStacked = dp(if (zoom) 176 else 120), controlsSide = dp(if (zoom) 176 else 112), minNotice = dp(48),
     )
 
-    /** Picture, top bar and controls of a stacked plan do not overlap; the picture sits right under the bar. */
-    private fun assertClearStacked(p: ViewfinderLayout.Plan, w: Int, h: Int) {
+    /** Picture, top bar and controls of a stacked plan do not overlap; the picture is centred between bar and controls. */
+    private fun assertClearStacked(p: ViewfinderLayout.Plan, w: Int, h: Int, controls: Int = dp(176)) {
         assertEquals(Arrangement.STACKED, p.arrangement); assertFalse(p.overlay)
-        assertEquals(dp(56), p.picture.top)
+        assertTrue(p.picture.top >= dp(56))
         assertTrue(p.picture.bottom <= h - dp(120))
+        // centred between the top bar and the controls (rounding: a pixel either way)
+        assertTrue("${p.picture}", kotlin.math.abs((p.picture.top - dp(56)) - (h - controls - p.picture.bottom)) <= 1)
         assertEquals(w, p.picture.width)
     }
 

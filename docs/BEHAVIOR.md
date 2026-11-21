@@ -27,7 +27,7 @@ conformance scenarios the tests check. The wire protocol itself is in [PROTOCOL.
 | Card full / numbering exhausted | Message, shutter off; at connect the app quits | Message, shutter off, session stays (view still works) |
 | Errors | Every failed camera command ends the app; no reconnect anywhere | A failed command is reported and can be retried; a lost live view or Wi-Fi blip reconnects on its own |
 | Stalled live view | Noticed after 10–20 s, app quits | Noticed after a few seconds (longer after a picture, and longer with each stall in a row), live view reopened; the log says how many bytes came on the stalled connection |
-| Leaving the app | Session keeps running in the background until an idle timer (10 min, silent) | Session closed when the screen is left, resumed automatically on return |
+| Leaving the app | Session keeps running in the background until an idle timer (10 min, silent) | Connection kept while away (the camera leaves Remote Viewfinder when it ends, and closing the live view at the wrong moment can hang an NX1000); the picture is not drawn meanwhile; ended after 10 minutes away and resumed on return |
 | Phone battery | Quits at 7 % | Not the app's business |
 | Without a camera | Nothing | Demo mode with a built-in simulated camera |
 
