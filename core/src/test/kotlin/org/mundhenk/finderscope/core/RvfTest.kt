@@ -359,9 +359,23 @@ class RvfTest {
         fails(ByteArray(0), EOFException::class.java)
         fails("RIFX".toByteArray() + ByteArray(8))
         fails("RIFF".toByteArray() + ByteArray(4) + "WAVE".toByteArray())
-        fails(avi(header, "00dc".toByteArray() + byteArrayOf(0, 0, 1, 0))) // 65536 > max
-        fails(avi(header, "JUNK".toByteArray() + byteArrayOf(0, 0, 0, 0x80.toByte()))) // negative
-        fails(avi(header, "strh".toByteArray() + byteArrayOf(0, 0, 0, 0x80.toByte())))
+        // impossible sizes and ids that are none: the reader searches for the next frame instead of failing
+        fun recovers(vararg junk: ByteArray) {
+            val rr = AviFrameReader(ByteArrayInputStream(avi(header, *junk, AviFrameReader.chunk(odd))), maxFrameBytes = 1000)
+            assertArrayEquals(odd, rr.next()!!.data); assertEquals(1, rr.resyncs); assertNull(rr.next())
+        }
+        recovers("00dc".toByteArray() + byteArrayOf(0, 0, 1, 0)) // 65536 > max
+        recovers("JUNK".toByteArray() + byteArrayOf(0, 0, 0, 0x80.toByte())) // negative
+        recovers("strh".toByteArray() + byteArrayOf(0, 0, 0, 0x80.toByte()))
+        recovers(byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9)) // not a chunk at all
+        assertNull(AviFrameReader(ByteArrayInputStream(avi(header, byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8)))).next()) // garbage to the end
+
+        // NX1000: after a picture the restarted encoder sends a whole new AVI header on the same
+        // connection (RIFF size 0, real hdrl sizes); read as a chunk it would swallow 1.4 GB
+        val nx = avi(header, AviFrameReader.chunk(odd), AviFrameReader.header(320, 240, VideoCodec.MJPEG), AviFrameReader.chunk(odd))
+        val rNx = AviFrameReader(ByteArrayInputStream(nx))
+        rNx.next(); assertEquals(0, rNx.restarts)
+        assertArrayEquals(odd, rNx.next()!!.data); assertEquals(1, rNx.restarts); assertEquals(0, rNx.resyncs)
         fails(avi(header, "JUNK".toByteArray() + byteArrayOf(9, 0, 0, 0, 1)), EOFException::class.java)
         fails(avi(header, "00d".toByteArray()), EOFException::class.java)
         // a LIST header cut off and short header chunks are tolerated

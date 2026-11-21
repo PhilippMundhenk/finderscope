@@ -71,6 +71,7 @@ class CameraSession(
         const val WAITING = "waiting for the camera"
         /** Frames sooner than this after the picture are still buffered from before it, not the camera going on. */
         private const val RESUME_AFTER_MS = 500L
+        private const val ATTEMPT_MS = 1_500L
         const val STOPPED_SENDING = "The camera stopped sending its live view. Switch Remote Viewfinder off and on again on the camera."
     }
 
@@ -139,20 +140,33 @@ class CameraSession(
         var at = CameraLocation(host, port, "/smp_2_")
         val deadline = System.currentTimeMillis() + findTimeoutMs
         var waiting = false
+        var attempts = 0
+        // the same complaint on every attempt is said once
+        val said = HashSet<String>()
+        val quietLog: (String) -> Unit = { m -> if (attempts == 0 || said.add(m.substringBefore(" (").take(40))) log(m) }
         while (true) {
-            val c = RvfClient(at.host, at.port, clientId, http, log, modePort = modePort, descriptionPath = at.path)
-            try { return c to c.connect() } catch (e: IOException) {
-                if (e is RvfException || !notYetThere(e) || closed.get()) throw e
+            val started = System.currentTimeMillis()
+            val c = RvfClient(at.host, at.port, clientId, http, quietLog, modePort = modePort, descriptionPath = at.path)
+            try { return c to c.connect().also { if (attempts > 0) log("camera answered after ${attempts + 1} attempts") } } catch (e: IOException) {
+                if (!notYetThere(e) || closed.get()) throw e
                 if (System.currentTimeMillis() > deadline) throw RvfException("the camera did not answer at ${at.host}. Is Remote Viewfinder on, and the phone on the camera's network?")
-                if (!waiting) { waiting = true; listener.onState(State.CONNECTING, WAITING); log("camera not answering yet (${e.message}), looking for it") }
+                if (!waiting) { waiting = true; listener.onState(State.CONNECTING, WAITING); log("camera not ready yet (${e.message}), waiting for it") }
+                attempts++
                 val found = discover?.invoke(1_500)
-                if (found != null && found != at) { log("camera found at $found"); at = found } else if (discover == null) Thread.sleep(1_000)
+                // only the camera itself: other devices on a network answer SSDP too (a NAS was taken for the camera)
+                if (found != null && found != at && found.host == host) { log("camera description at ${found.port}${found.path}"); at = found }
+                else if (found != null && found.host != host) quietLog("SSDP: ignored ${found.host}, not the camera")
+                // never faster than every 1.5 s: a starting camera must not be flooded with connections
+                val wait = ATTEMPT_MS - (System.currentTimeMillis() - started)
+                if (wait > 0) Thread.sleep(wait)
             }
         }
     }
 
     /** Errors that mean "nobody there (yet)", as opposed to a camera that answered badly. */
     private fun notYetThere(e: IOException): Boolean =
+        // a camera whose web server is up before Remote Viewfinder is ready answers 404 / 503 (seen on an NX1000)
+        (e is RvfException && (e.status == 404 || e.status == 503)) ||
         e is java.net.ConnectException || e is java.net.NoRouteToHostException || e is java.net.SocketTimeoutException ||
             (e is java.net.SocketException && e.message.orEmpty().contains("refused", ignoreCase = true))
 
@@ -177,7 +191,7 @@ class CameraSession(
                 } else if (!endedByShot.getAndSet(false) && System.currentTimeMillis() - lastShotAt > afterShotQuietMs) command { listener.onNotice(Notice.RECONNECTED) }
                 command { listener.onReady(shutterUsable()) }
                 first = false
-                try { pump(reader) } catch (e: IOException) { if (closed.get()) break else log("live view interrupted: ${e.message}") }
+                try { pump(reader); if (!closed.get()) log("live view ended by the camera after ${reader.bytesRead} bytes") } catch (e: IOException) { if (closed.get()) break else log("live view interrupted: ${e.message}") }
                 setLive(false)
             }
         } catch (e: Exception) {
@@ -232,7 +246,10 @@ class CameraSession(
         val deadline = System.currentTimeMillis() + reopenTimeoutMs
         var last: Exception? = null
         while (!closed.get() && System.currentTimeMillis() < deadline) {
-            try { return open(c) } catch (e: Exception) { last = e; Thread.sleep(1_000) }
+            try { return open(c).also { log("live view open again") } } catch (e: Exception) {
+                if (last == null || last.message != e.message) log("live view not back yet: ${e.message}")
+                last = e; Thread.sleep(1_000)
+            }
         }
         if (!closed.get()) fail("The live view did not come back${last?.message?.let { " ($it)" } ?: ""}")
         return null
@@ -240,6 +257,7 @@ class CameraSession(
 
     private fun pump(reader: AviFrameReader) {
         var announced = false
+        restartsSeen = 0; resyncsSeen = 0
         while (!closed.get()) {
             val frame = reader.next() ?: return
             lastFrameAt.set(System.currentTimeMillis())
@@ -250,15 +268,36 @@ class CameraSession(
                 setLive(true)
                 if (endedByShot.getAndSet(false)) command { listener.onReady(shutterUsable()) }
             }
+            if (reader.restarts != restartsSeen) {
+                // a new AVI header on the same connection: the decoder starts over (the size may differ)
+                restartsSeen = reader.restarts
+                log("the camera restarted its live view on the same connection (${reader.width}x${reader.height})")
+                announced = false
+            }
+            if (reader.resyncs != resyncsSeen) { resyncsSeen = reader.resyncs; log("live view: lost the chunk structure, found the next frame again") }
             if (!announced) { announced = true; listener.onStream(reader.codec, reader.width, reader.height) }
-            listener.onFrame(frame, reader.codec)
+            if (frameAfterShot) { frameAfterShot = false; log("live view back ${System.currentTimeMillis() - lastShotAt} ms after the picture") }
+            try { listener.onFrame(frame, reader.codec) } catch (e: RuntimeException) {
+                // a decoder that chokes on one frame must not stop the session: start over at the next key frame
+                log("frame ${frame.index} not shown: $e")
+                announced = false
+            }
         }
     }
+
+    private var restartsSeen = 0
+    private var resyncsSeen = 0
+    @Volatile private var frameAfterShot = false
+    @Volatile private var quietNoted = false
 
     /** No frame for [stallMs] while no picture is being taken: drop the stream, the pump opens it again. */
     private fun watchStall() {
         if (closed.get() || capturing.get() || stream == null) return
         val now = System.currentTimeMillis()
+        if (frameAfterShot && !quietNoted && now - lastShotAt > 10_000) {
+            quietNoted = true
+            log("no picture for 10 s since the shot (${reader?.bytesRead ?: 0} bytes on this connection so far)")
+        }
         if (now < quietUntil) return
         val limit = stallMs * (1 + minOf(stallsInRow.get(), 5))
         val silent = now - maxOf(lastFrameAt.get(), quietUntil)
@@ -358,6 +397,7 @@ class CameraSession(
             endedByShot.set(true)
             setLive(false)
             lastShotAt = System.currentTimeMillis()
+            frameAfterShot = true; quietNoted = false
             quietUntil = lastShotAt + afterShotQuietMs
             val url = shot.url
             when {

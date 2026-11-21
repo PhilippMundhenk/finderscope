@@ -305,7 +305,7 @@ class ConformanceTest {
      */
     @Test
     fun streamPausesForThePicture() {
-        val s = camera().apply { shotPauseMs = 2_500 }
+        val s = camera().apply { shotPauseMs = 2_500; headerOnRestart = true }
         val (cs, ev) = session(s, stallMs = 1_000)
         waitFor { cs.frames.get() > 0 }
         cs.tap()
@@ -315,6 +315,8 @@ class ConformanceTest {
         waitFor(what = "shutter back") { ev.log.count { it == "ready:true" } >= 2 }
         assertEquals(1, s.streamOpens.get())
         assertFalse(ev.log.toString(), ev.log.any { it.contains("stalled") })
+        assertTrue(ev.log.toString(), ev.log.any { it.contains("restarted its live view on the same connection") })
+        assertFalse(s.hung)
         cs.tap() // the next picture works on the same connection
         waitFor(what = "second picture", timeoutMs = 10_000) { ev.pictures.size == 2 }
         assertEquals(emptyList<String>(), s.violations.toList())

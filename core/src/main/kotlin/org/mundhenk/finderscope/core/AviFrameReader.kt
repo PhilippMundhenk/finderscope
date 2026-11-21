@@ -37,6 +37,11 @@ class AviFrameReader(input: InputStream, private val maxFrameBytes: Int = 8 * 10
     /** Frames per second from `strh` (rate / scale), 0 when unknown. */
     var fps = 0.0; private set
 
+    /** A new AVI header came in the middle of the stream (the camera restarted its encoder). */
+    @Volatile var restarts = 0; private set
+    /** Times the reader lost the chunk structure and searched for the next frame. */
+    @Volatile var resyncs = 0; private set
+
     /** The next video frame, or null at the end of the stream. */
     fun next(): VideoFrame? {
         if (!started) readRiffHeader()
@@ -45,11 +50,13 @@ class AviFrameReader(input: InputStream, private val maxFrameBytes: Int = 8 * 10
             val size = readLeInt()
             when {
                 id == "LIST" -> { readFourCc() ?: return null } // enter: hdrl, strl, movi, rec
+                // a restarted encoder begins a new AVI on the same connection: enter it like a LIST
+                id == "RIFF" -> { readFourCc() ?: return null; restarts++ }
+                !plausible(id) || size < 0 || size > maxFrameBytes -> { resync() ?: return null; continue }
                 id == "avih" -> parseAvih(readBody(size))
                 id == "strh" -> parseStrh(readBody(size))
                 id == "strf" -> parseStrf(readBody(size))
                 isVideoChunk(id) -> {
-                    if (size < 0 || size > maxFrameBytes) throw IOException("implausible frame size $size")
                     val data = readBody(size)
                     if (data.isEmpty()) continue
                     if (codec == VideoCodec.UNKNOWN || frames == 0L) sniff(data)?.let { codec = it }
@@ -68,6 +75,30 @@ class AviFrameReader(input: InputStream, private val maxFrameBytes: Int = 8 * 10
         val form = readFourCc()
         if (form != "AVI ") throw IOException("not an AVI stream (form '$form')")
     }
+
+    /** A chunk id is four printable characters. */
+    private fun plausible(id: String) = id.all { it in ' '..'~' }
+
+    /**
+     * Lost in the stream (a chunk id that is none, or a size that cannot be): read on until the
+     * next video chunk id or a new RIFF, then continue from there. Null at the end of the stream.
+     */
+    private fun resync(): Unit? {
+        resyncs++
+        val w = CharArray(4)
+        var n = 0
+        while (true) {
+            val c = input.read()
+            if (c < 0) return null
+            w[0] = w[1]; w[1] = w[2]; w[2] = w[3]; w[3] = c.toChar(); n++
+            if (n < 4) continue
+            val id = String(w)
+            if (isVideoChunk(id) || id == "RIFF") { pending = id; return Unit }
+        }
+    }
+
+    /** A chunk id already read by [resync]. */
+    private var pending: String? = null
 
     private fun isVideoChunk(id: String) =
         id.length == 4 && id[0].isDigit() && id[1].isDigit() && (id.endsWith("dc") || id.endsWith("db"))
@@ -91,6 +122,7 @@ class AviFrameReader(input: InputStream, private val maxFrameBytes: Int = 8 * 10
     }
 
     private fun readFourCc(): String? {
+        pending?.let { pending = null; return it }
         val b = ByteArray(4)
         var n = 0
         while (n < 4) {

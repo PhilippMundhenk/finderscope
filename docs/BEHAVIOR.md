@@ -59,14 +59,17 @@ conformance scenarios the tests check. The wire protocol itself is in [PROTOCOL.
   the new picture on the card and the remaining shots. The live view is opened again, then the
   small copy (`<picture>_SM`) is fetched and shown. An empty picture name left the original
   stuck with no live view.
-* On a real NX1000 the live-view connection is not ended by the shot: it stays open and sends
-  nothing for a few seconds while the camera shows the picture, then goes on. Connections opened
-  during that pause got nothing either. finderscope keeps the connection, treats up to 20 s of
-  silence after a picture as normal (30 s), and brings the shutter back with the first new frame.
-* In a field test (0.1.1, which reopened the stream every few seconds during that pause) the
-  NX1000 showed a spinner after the first picture and hung until the battery was removed. The
-  simulator now reports a stream opened during the pause as a violation, and finderscope gives
-  up after four silent reopens in a row instead of asking again.
+* On a real NX1000 the live-view connection is not ended by the shot: the camera stops its
+  encoder, takes the picture, starts the encoder again and only then answers Shot; the open
+  connection then carries a complete new AVI header followed by frames (see PROTOCOL.md). 0.1.x
+  read that header as one enormous chunk and showed nothing more (field test: frozen picture,
+  grey shutter). finderscope reads a new header as a restart of the stream, searches for the
+  next frame when it ever loses the chunk structure, keeps the connection, and brings the
+  shutter back with the first new frame.
+* Closing or reopening the stream while the camera takes the picture hangs the NX1000 (seen
+  with 0.1.1, explained by the firmware). finderscope never touches the stream during a Shot
+  and leaves it alone for 30 s afterwards; after four silent reopens in a row it gives up. The
+  simulator treats a stream opened or closed during the picture as a hang and stops answering.
 * The camera asks the user to allow the phone at every start of Remote Viewfinder; it keeps the
   "allowed" state only while the mode runs.
 * Remaining shots 0 = card full, -1 = folder / file numbering exhausted.

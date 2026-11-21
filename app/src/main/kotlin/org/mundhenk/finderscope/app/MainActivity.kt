@@ -69,7 +69,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     private var multicastLock: WifiManager.MulticastLock? = null
     private var info: RvfInfo? = null
     private var model = CameraModel("")
-    private var streamSize = 0 to 0
+    @Volatile private var streamSize = 0 to 0
     private var rotation = Rotation.D
     private var flashIndex = 0
     private var lastPicture: Uri? = null
@@ -334,13 +334,30 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         layoutPicture()
     }
 
-    override fun onStream(codec: VideoCodec, width: Int, height: Int) = ui {
+    override fun onStream(codec: VideoCodec, width: Int, height: Int) {
+        // on the stream thread, which also feeds the decoder: a new size needs a new decoder
+        val changed = streamSize != (width to height)
         streamSize = width to height
-        b.liveImage.visibility = if (codec == VideoCodec.MJPEG) View.VISIBLE else View.GONE
-        b.liveSurface.visibility = if (codec == VideoCodec.MJPEG) View.GONE else View.VISIBLE
-        decoder?.resync()
-        layoutPicture()
+        if (changed) dropDecoder() else decoder?.resync()
+        ui {
+            b.liveImage.visibility = if (codec == VideoCodec.MJPEG) View.VISIBLE else View.GONE
+            b.liveSurface.visibility = if (codec == VideoCodec.MJPEG) View.GONE else View.VISIBLE
+            layoutPicture()
+        }
     }
+
+    /** The size the decoder really produces wins over the AVI header (the NX1000 header always says 320x240). */
+    private fun pictureSizeFromDecoder(w: Int, h: Int) {
+        if (decodedSize == w to h) return
+        decodedSize = w to h
+        LogBus.log("live view is ${w}x$h")
+        ui { layoutPicture() }
+    }
+
+    @Volatile private var decodedSize: Pair<Int, Int>? = null
+
+    /** The decoder is made again at the next key frame. */
+    private fun dropDecoder() { val d = decoder; decoder = null; runCatching { d?.release() } }
 
     override fun onFrame(frame: VideoFrame, codec: VideoCodec) {
         if (codec == VideoCodec.MJPEG) {
@@ -350,8 +367,12 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             return
         }
         parameterSets.observe(frame.data) // also while there is no surface yet
-        val d = decoder ?: b.liveSurface.holder.surface?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second, parameterSets) }?.also { decoder = it } ?: return
-        d.feed(frame, System.nanoTime() / 1000)
+        val d = decoder ?: b.liveSurface.holder.surface?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second, parameterSets) { w, h -> pictureSizeFromDecoder(w, h) } }?.also { decoder = it } ?: return
+        try { d.feed(frame, System.nanoTime() / 1000) } catch (e: IllegalStateException) {
+            // MediaCodec.CodecException included: start over with a fresh decoder at the next key frame
+            LogBus.log("decoder error, starting over: $e")
+            dropDecoder()
+        }
     }
 
     @Volatile var framesShown = 0L; private set
@@ -469,7 +490,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     private fun layoutPicture() {
         val w = b.root.width; val h = b.root.height
         if (w == 0 || h == 0) return
-        val (sw, sh) = streamSize.takeIf { it.first > 0 && it.second > 0 } ?: (4 to 3)
+        val (sw, sh) = (decodedSize ?: streamSize).takeIf { it.first > 0 && it.second > 0 } ?: (4 to 3)
         val turned = rotation == Rotation.L || rotation == Rotation.R
         val aspect = if (turned) sh.toDouble() / sw else sw.toDouble() / sh
         val zoom = b.zoomPill.visibility == View.VISIBLE
@@ -607,7 +628,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         catch (e: android.content.ActivityNotFoundException) { notice(getString(R.string.open_failed)) }
     }
 
-    private fun releaseDecoder() { decoder?.release(); decoder = null }
+    private fun releaseDecoder() { decoder?.release(); decoder = null; decodedSize = null }
 
     private fun ui(block: () -> Unit) { if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block) }
 

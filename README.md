@@ -30,7 +30,7 @@ similar. Built with the NX1000 in mind; see the status line below for what has b
 2. On the camera: Wi-Fi → *Remote Viewfinder*. The camera opens its own Wi-Fi network.
 3. In finderscope: **Join camera Wi-Fi** and pick the camera's network in the list Android shows.
    Mobile data stays on for everything else on the phone.
-4. The first time, the camera asks whether to allow this phone: confirm on the camera.
+4. The camera asks whether to allow this phone: confirm on the camera. It asks every time Remote Viewfinder starts.
 5. Hold the shutter button to focus (the frames that are in focus light up), release to take the
    picture. Slide off the button to cancel. The volume keys work as a shutter too.
 

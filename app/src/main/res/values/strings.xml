@@ -7,7 +7,7 @@
     <string name="connect_by_address">Connect by address</string>
     <string name="status_idle">Not connected</string>
     <string name="status_connecting">Connecting to %1$s…</string>
-    <string name="status_connecting_hint">The first time, the camera asks whether to allow this phone. Confirm on the camera.</string>
+    <string name="status_connecting_hint">The camera asks whether to allow this phone. Confirm on the camera (it asks every time Remote Viewfinder starts).</string>
     <string name="howto">On the camera: Wi-Fi → <i>Remote Viewfinder</i>. Then tap <b>Join camera Wi-Fi</b> and pick the camera\'s network.</string>
     <string name="join_wifi">Join camera Wi-Fi</string>
     <string name="join_known">Connect to %1$s</string>

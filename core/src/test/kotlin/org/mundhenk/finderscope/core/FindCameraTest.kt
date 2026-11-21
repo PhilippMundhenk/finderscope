@@ -57,7 +57,34 @@ class FindCameraTest {
         val discover: (Long) -> CameraLocation? = { t -> DatagramSocket().use { SsdpSearch.search(it, t, InetSocketAddress("127.0.0.1", s.ssdpPort)) } }
         val cs = CameraSession("127.0.0.1", freePort(), "id", ev, modePort = freePort(), log = { logs += it }, discover = discover).start(); sessions += cs
         waitFor { ev.log.any { it.startsWith("state:LIVE") } }
-        assertTrue(logs.toString(), logs.any { it.contains("camera found at CameraLocation(host=127.0.0.1, port=${s.controlPort}, path=/smp_2_)") })
+        assertTrue(logs.toString(), logs.any { it.contains("camera description at ${s.controlPort}/smp_2_") })
+    }
+
+    /**
+     * Seen on an NX1000: the web server is up before Remote Viewfinder, and the description
+     * answers 404 for a few seconds. That is "not ready yet", and the camera is not flooded meanwhile.
+     */
+    @Test
+    fun notReadyYetAnswers404() {
+        val s = camera().apply { notReadyMs = 4_000 }
+        val ev = Events()
+        val t0 = System.currentTimeMillis()
+        val cs = CameraSession("127.0.0.1", s.controlPort, "id", ev, modePort = freePort(), findTimeoutMs = 20_000).start(); sessions += cs
+        waitFor { ev.log.any { it.startsWith("state:LIVE") } }
+        val seconds = (System.currentTimeMillis() - t0) / 1000.0
+        assertTrue("${s.descriptionRequests.get()} requests in $seconds s", s.descriptionRequests.get() <= seconds / 1.5 + 2)
+    }
+
+    /** On the wrong network SSDP finds other devices (a NAS): never taken for the camera. */
+    @Test
+    fun otherDevicesAreNotTheCamera() {
+        val ev = Events()
+        val logs = CopyOnWriteArrayList<String>()
+        val nas = CameraLocation("192.0.2.7", 5000, "/ssdp/desc.xml")
+        val cs = CameraSession("127.0.0.1", freePort(), "id", ev, modePort = freePort(), log = { logs += it }, discover = { nas }, findTimeoutMs = 3_000).start(); sessions += cs
+        waitFor { cs.isClosed }
+        assertTrue(logs.toString(), logs.none { it.contains("5000") && it.contains("description") })
+        assertTrue(ev.log.toString(), ev.log.any { it.contains("did not answer at 127.0.0.1") })
     }
 
     /** No camera at all: a clear failure after the search time, not a hang. */

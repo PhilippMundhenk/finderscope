@@ -110,7 +110,21 @@ class RvfCameraSimulator(
      * is ended for the picture.
      */
     @Volatile var shotPauseMs = 0L
+    /** After the picture the restarted encoder begins a new AVI header on the open connection. */
+    @Volatile var headerOnRestart = false
+    /**
+     * The NX1000 firmware waits without a timeout for its encoder when a stream connection ends
+     * while the encoder is stopped for a picture: closing or opening the live view then hangs the
+     * camera for good. Set when that happened; the simulator then stops answering, like the camera.
+     */
+    @Volatile var hung = false
+    /** Like a starting NX1000: the web server is up but answers 404 for this long before Remote Viewfinder is ready. */
+    @Volatile var notReadyMs = 0L
+    @Volatile private var controlUpAt = 0L
+    /** Description requests seen (to check that a client does not flood a starting camera). */
+    val descriptionRequests = java.util.concurrent.atomic.AtomicInteger()
     @Volatile private var pausedUntil = 0L
+    @Volatile private var restartPending = false
     /** The live view is ended this long after the Shot answer (frames still come meanwhile). */
     @Volatile var endStreamDelayMs = 0L
     /** Keep the live-view connection open but stop sending frames. */
@@ -150,7 +164,8 @@ class RvfCameraSimulator(
 
     fun start(): RvfCameraSimulator {
         if (running.getAndSet(true)) return this
-        if (startDelayMs > 0) pool.execute { Thread.sleep(startDelayMs); if (running.get()) control.start() } else control.start()
+        if (startDelayMs > 0) pool.execute { Thread.sleep(startDelayMs); if (running.get()) { control.start(); controlUpAt = System.currentTimeMillis() } }
+        else { control.start(); controlUpAt = System.currentTimeMillis() }
         val ssdp = java.net.DatagramSocket(0); ssdpSocket = ssdp
         pool.execute {
             val buf = ByteArray(2048)
@@ -200,6 +215,7 @@ class RvfCameraSimulator(
     private fun endStreams() { synchronized(streams) { streams.forEach { runCatching { it.close() } }; streams.clear() } }
 
     private fun handle(r: HttpRequest): HttpResponse {
+        if (hung) { Thread.sleep(5_000); return HttpResponse(503, ByteArray(0), "text/plain") } // a hung camera answers nothing useful
         val ua = r.header("User-Agent") ?: ""
         if (r.path.startsWith("/DCIM/")) {
             val file = r.path.substringAfterLast('/')
@@ -213,6 +229,8 @@ class RvfCameraSimulator(
         }
         return when (r.path) {
             "/smp_2_" -> {
+                descriptionRequests.incrementAndGet()
+                if (System.currentTimeMillis() - controlUpAt < notReadyMs) return HttpResponse.notFound()
                 userAgents += ua
                 if (!ua.startsWith(profile.uaPrefix) || (profile.uaPrefix == RvfClient.UA_PREFIX && ua.startsWith(RvfClient.UA_PREFIX_ML))) {
                     return HttpResponse(401, "Unauthorized".toByteArray(), "text/plain")
@@ -252,7 +270,12 @@ class RvfCameraSimulator(
             if ((action == "Shot" || action == "ShotWithGPS") && failShots) return fault(803, "Capture Failed")
             val reply = answer(action, body)
             if (action == "Shot" || action == "ShotWithGPS") {
-                if (shotPauseMs > 0) pausedUntil = System.currentTimeMillis() + shotPauseMs
+                if (shotPauseMs > 0) {
+                    // NX1000: encoder stopped, picture taken, encoder started again, and only then the answer
+                    pausedUntil = System.currentTimeMillis() + shotPauseMs
+                    Thread.sleep(shotPauseMs)
+                    if (headerOnRestart) restartPending = true
+                }
                 else if (endStreamDelayMs > 0) Thread { Thread.sleep(endStreamDelayMs); endStreams() }.start()
                 else endStreams() // the camera stops the live view to take the picture
             }
@@ -314,18 +337,24 @@ class RvfCameraSimulator(
                 return
             }
             streamOpens.incrementAndGet()
-            // suspected to hang a real NX1000: a new live view while it is still showing the picture
-            if (System.currentTimeMillis() < pausedUntil) violations += "live stream opened while the camera shows the picture"
+            // hangs a real NX1000: a live view opened while the encoder is stopped for a picture
+            if (System.currentTimeMillis() < pausedUntil) { violations += "live stream opened while the camera takes the picture"; hung = true }
             try {
                 val out = s.getOutputStream()
                 out.write("HTTP/1.1 206 Partial Content\r\nContent-Type: video/avi\r\nConnection: close\r\n\r\n".toByteArray())
                 out.write(AviFrameReader.header(width, height, codec))
                 var i = 0
                 while (running.get() && !s.isClosed) {
+                    if (restartPending && System.currentTimeMillis() >= pausedUntil) {
+                        restartPending = false
+                        out.write(AviFrameReader.header(width, height, codec))
+                    }
+                    if (hung) { Thread.sleep(50); continue }
                     if (stallStream || System.currentTimeMillis() < pausedUntil) {
                         // no frames, but notice when the client gives up on the connection
                         s.soTimeout = 50
                         val gone = try { s.getInputStream().read() < 0 } catch (_: java.net.SocketTimeoutException) { false }
+                        if (gone && System.currentTimeMillis() < pausedUntil) { violations += "live stream closed while the camera takes the picture"; hung = true }
                         if (gone) break else continue
                     }
                     out.write(AviFrameReader.chunk(frames[i % frames.size]))

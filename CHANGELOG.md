@@ -7,6 +7,18 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- After a picture the NX1000 live view froze (grey shutter, green focus frame) until the camera
+  dropped the connection: the camera sends a new AVI header in the middle of the stream after
+  each picture, and finderscope read it as one huge chunk. It now takes it as a restart of the
+  stream, and finds the next frame whenever the stream stops making sense.
+- The first connection after starting Remote Viewfinder failed with "HTTP 404": the camera's web
+  server answers 404 for a moment while it starts. That is now "not ready yet", like a refused
+  connection. Attempts are at least 1.5 s apart (0.1.4 could try dozens of times a second).
+- On the wrong network the search took other devices (a NAS) for the camera; only the camera's
+  own address is accepted now.
+- Black bar or cut-off live view: the NX1000 stream header always says 320x240; the picture is
+  now laid out with the size the decoder actually produces. A decoder error restarts the decoder
+  at the next key frame instead of stopping the picture.
 - Updates install over the previous version again: releases are signed with one fixed release
   key. 0.1.0 to 0.1.4 had a different throwaway key each, so the first signed release needs one
   uninstall of the old version.

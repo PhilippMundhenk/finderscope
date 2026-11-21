@@ -72,7 +72,7 @@ POST /smp_4_ ZoomIN / ZoomOUT         <- CURRENTZOOM     only where the SCPD dec
 * **Live stream.**
   * The camera writes `0` for every RIFF/LIST length, so a reader must enter LISTs instead of
     skipping them and trust only leaf chunk sizes.
-  * Stills mode is H.264 (Annex B, SPS/PPS in band, 29.97 fps from `strh` 1001/30000); movie mode
+  * Stills mode is H.264 (Annex B, SPS/PPS in band, the frame rate in `strh` is not reliable: the NX1000 header always says 15 fps and 320x240); movie mode
     on some models is MJPEG.
   * Only one reader at a time. The camera **ends the stream for every Shot**; Samsung's apps fetch
     the picture and then open the stream again, and so does finderscope (retrying for up to a minute,
@@ -110,15 +110,38 @@ MediaServer description, for up to 60 s.
 
 ## What the NX1000 firmware shows
 
-Messages and names in the NX1000 firmware (1.15) confirm what the real camera did:
+From reading the NX1000 firmware (1.15) code, checked against field logs. Described in our own
+words; addresses and details are kept outside this repository.
 
-* The camera's HTTP server is started only after its media database and configuration files
-  are checked, so :7676 refuses connections for a while after the network is up.
-* The live-view sender has a pause and a resume besides start and stop: around a picture the
-  stream is paused on the same connection, not ended. How long probably follows the camera's
-  *Quick View* setting (off, 1, 3, 5 s, hold); with *hold* the stream may stay silent until the
-  camera leaves the review.
-* A new stream connection gets nothing until the sender has a header (key) frame for it.
+* **Start-up.** The web server on :7676 is started only after the camera has checked its media
+  database and configuration files. Until then connections are refused; for a moment after that
+  the description can answer 404. Both mean "not ready yet".
+* **Pairing.** The description request with the `SEC_RVF_` User-Agent shows the prompt on the
+  camera, and the answer is held until the user decides (with a long timeout). The "allowed"
+  state lives in memory only: the prompt comes at every start of Remote Viewfinder, also for a
+  phone it allowed before. A different phone while a session runs, and the user saying no, both
+  get HTTP 401.
+* **Shot.** Shot (and ShotWithGPS) is handled in one go before the answer is sent: the video
+  encoder is stopped, the picture taken, the encoder started again. The live-view connection is
+  not closed; it just carries nothing during that time and then goes on.
+* **A new AVI header in the middle of the stream.** Each encoder start writes the fixed AVI
+  header again, and an open connection passes it on like any frame. After every picture the
+  stream therefore contains `RIFF`, `AVI `, `LIST hdrl` ... `LIST movi` again before the next
+  frames. A reader that takes this `RIFF` for an ordinary chunk ends up skipping gigabytes.
+* **The header says nothing about the picture.** It is a constant: 320x240, 15 fps, `H264`,
+  RIFF and `movi` sizes 0, `hdrl`/`strl` sizes filled in. The real picture size is in the H.264
+  SPS (the decoder reports it).
+* **New connections** get nothing until the next header; frames before it are dropped.
+* **One reader.** There is a single frame hand-over between encoder and network without
+  per-client state; a second stream connection restarts the encoder for both.
+* **Closing or opening the stream during a picture hangs the camera.** Ending a stream
+  connection stops the encoder and waits without a timeout for it to report "stopped". When the
+  encoder is already stopped for a picture, that report never comes: the camera stays stuck
+  (spinner; only removing the battery helps). Never close, reopen or open the live view while
+  a Shot is in progress, and not right after it either.
+* **`_SM` previews** answer 503 when the file is not available (yet), 500 on memory shortage.
+* **Session end:** Wi-Fi loss on the camera side ends Remote Viewfinder; leaving the mode sends
+  `ssdp:byebye`. No HeartBeat on this model.
 
 ## SSDP notices while connected
 
