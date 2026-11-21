@@ -55,6 +55,7 @@ class ScreenshotTest {
         val context = instrumentation.targetContext
         context.getSharedPreferences("finderscope", Context.MODE_PRIVATE).edit().clear().commit()
         // a calm status bar for the pictures
+        shell("settings put secure immersive_mode_confirmations confirmed")
         shell("settings put global sysui_demo_allowed 1")
         shell("am broadcast -a com.android.systemui.demo -e command enter")
         shell("am broadcast -a com.android.systemui.demo -e command clock -e hhmm 1200")

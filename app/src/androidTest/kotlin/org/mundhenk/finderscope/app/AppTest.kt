@@ -86,7 +86,11 @@ class AppTest {
         LogBus.clear()
         context.contentResolver.delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "${MediaStore.Images.Media.RELATIVE_PATH} = ?", arrayOf("Pictures/${Pictures.FOLDER}/"))
         val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        runCatching { device.executeShellCommand("wm dismiss-keyguard"); device.executeShellCommand("svc power stayon true"); device.wakeUp() }
+        runCatching {
+            device.executeShellCommand("wm dismiss-keyguard"); device.executeShellCommand("svc power stayon true"); device.wakeUp()
+            // the live view hides the system bars; Android's one-time "viewing full screen" hint would take window focus
+            device.executeShellCommand("settings put secure immersive_mode_confirmations confirmed")
+        }
     }
 
     private fun waitFor(timeoutMs: Long = 30_000, what: String = "condition", cond: () -> Boolean) {
