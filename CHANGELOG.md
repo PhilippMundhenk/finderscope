@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Less delay in the live view: the decoder runs in low-latency mode and each picture is shown
+  the moment it is decoded (before, a decoded frame could wait for the next one to arrive). The
+  log reports frames per second from the camera, frames shown, and the decoder's delay every
+  10 seconds.
+
 ## [0.1.7] - 2026-11-21
 
 ### Added

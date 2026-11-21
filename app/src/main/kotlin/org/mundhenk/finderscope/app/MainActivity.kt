@@ -386,7 +386,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             return
         }
         parameterSets.observe(frame.data) // also while there is no surface yet
-        val d = decoder ?: b.liveSurface.holder.surface?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second, parameterSets) { w, h -> pictureSizeFromDecoder(w, h) } }?.also { decoder = it } ?: return
+        val d = decoder ?: b.liveSurface.holder.surface?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second, parameterSets, onSize = { w, h -> pictureSizeFromDecoder(w, h) }, onStats = { LogBus.log(it) }) }?.also { decoder = it } ?: return
         try { d.feed(frame, System.nanoTime() / 1000) } catch (e: IllegalStateException) {
             // MediaCodec.CodecException included: start over with a fresh decoder at the next key frame
             LogBus.log("decoder error, starting over: $e")
