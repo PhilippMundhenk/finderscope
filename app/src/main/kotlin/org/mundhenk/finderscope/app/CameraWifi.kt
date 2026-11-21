@@ -24,6 +24,9 @@ class CameraWifi(private val context: Context) {
     private var callback: ConnectivityManager.NetworkCallback? = null
     @Volatile var network: Network? = null; private set
 
+    /** Hands the request to Android (which shows its network picker); the UI tests answer it themselves. */
+    var requester: (NetworkRequest, ConnectivityManager.NetworkCallback) -> Unit = { r, cb -> cm.requestNetwork(r, cb) }
+
     /**
      * Shows the system's network picker for camera networks. The 2013+ firmware names them
      * `AP_SSC_<model>_…`, the 2012 one `<model>_…`; both contain an underscore, which is what the
@@ -43,7 +46,7 @@ class CameraWifi(private val context: Context) {
             override fun onLost(n: Network) { if (n == network) network = null }
         }
         callback = cb
-        cm.requestNetwork(request, cb)
+        requester(request, cb)
     }
 
     /** Gives the camera network back to the system (Android then returns to the usual Wi-Fi). */

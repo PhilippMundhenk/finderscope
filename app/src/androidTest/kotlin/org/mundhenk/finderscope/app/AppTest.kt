@@ -355,13 +355,23 @@ class AppTest {
                 openActionBarOverflowOrOptionsMenu(context)
                 onView(withText(R.string.log)).perform(androidx.test.espresso.action.ViewActions.click())
                 intended(hasComponent(LogActivity::class.java.name))
-                // the camera network request: the system shows its picker; withdrawn again right away
+                // the camera network request, answered by the test instead of the system's picker:
+                // first no network (picker cancelled), then the phone's own Wi-Fi as "the camera network"
+                var answer: (android.net.ConnectivityManager.NetworkCallback) -> Unit = { it.onUnavailable() }
+                sc.onActivity { act -> act.wifi.requester = { _, cb -> answer(cb) } }
                 onView(withId(R.id.joinWifi)).perform(tap())
-                onView(withId(R.id.statusHint)).check(matches(withText(R.string.joining_wifi)))
+                waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_unavailable))) }
+                val wifiNetwork = context.getSystemService(android.net.ConnectivityManager::class.java).let { cm ->
+                    @Suppress("DEPRECATION") cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true }
+                        ?: cm.activeNetwork
+                }
+                if (wifiNetwork != null) {
+                    answer = { cb -> cb.onAvailable(wifiNetwork); cb.onLost(wifiNetwork) }
+                    onView(withId(R.id.joinWifi)).perform(tap())
+                    // the gateway is no camera: the attempt ends with a failure message, back on the start screen
+                    waitForUi(45_000) { onView(withId(R.id.status)).check(matches(withSubstring(context.getString(R.string.failed, "").trim()))) }
+                }
                 sc.onActivity { it.wifi.release(); assertNull(it.wifi.network) }
-                val device = androidx.test.uiautomator.UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-                // the system's "connect to device" dialog may still be up: back out of it; nothing else runs after this
-                repeat(3) { Thread.sleep(1_000); if (device.currentPackageName != context.packageName) device.pressBack() }
                 sc.onActivity { assertNotNull(it.wifi.socketFactory("192.168.102.1")); it.wifi.gateway() }
 
             }
