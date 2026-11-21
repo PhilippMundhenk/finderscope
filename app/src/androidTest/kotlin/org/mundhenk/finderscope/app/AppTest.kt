@@ -531,9 +531,13 @@ class AppTest {
             sc.onActivity { it.onConfigurationChanged(it.resources.configuration) }
             val group = InetSocketAddress(SsdpNotices.GROUP, SsdpNotices.PORT)
             Thread.sleep(1_000) // the notice listener joins the group right after connecting
-            s.sendNotice("ssdp:rotationR", group)
+            // out on the interface finderscope listens on, as a camera on its own Wi-Fi would send
+            var via: java.net.NetworkInterface? = null
+            sc.onActivity { via = it.wifi.cameraInterface(ip) }
+            assertTrue(LogBus.snapshot().toString(), LogBus.snapshot().any { it.contains("listening for the camera's notices") })
+            s.sendNotice("ssdp:rotationR", group, via = via)
             waitForUi(10_000) { sc.onActivity { act -> assertEquals(90f, act.findViewById<View>(R.id.picture).rotation) } }
-            s.sendNotice("ssdp:byebye", group)
+            s.sendNotice("ssdp:byebye", group, via = via)
             waitForUi { onView(withId(R.id.status)).check(matches(withText("The camera ended the connection"))) }
             onView(withId(R.id.connectPanel)).check(matches(isDisplayed()))
         }
