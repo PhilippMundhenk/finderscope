@@ -31,6 +31,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import com.google.android.material.button.MaterialButton
 import org.mundhenk.finderscope.core.AfCell
 import org.mundhenk.finderscope.core.Box
 import org.mundhenk.finderscope.core.ViewfinderLayout
@@ -425,6 +426,8 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         if (side) top.setPadding(ins.left, ins.top + px(8), 0, ins.bottom + px(8)) else top.setPadding(ins.left + px(8), ins.top, ins.right + px(8), 0)
         top.background = if (p.overlay) ContextCompat.getDrawable(this, if (side) R.drawable.scrim_start else R.drawable.scrim_top) else null
         b.info.layoutParams = if (side) LinearLayout.LayoutParams(wrap, 0, 1f) else LinearLayout.LayoutParams(0, wrap, 1f)
+        // in the narrow column the chips put their icon above the label instead of beside it
+        for (chip in listOf(b.flash, b.timer)) chip.iconGravity = if (side) MaterialButton.ICON_GRAVITY_TOP else MaterialButton.ICON_GRAVITY_TEXT_START
 
         // shutter, last picture, shots left (and zoom): a row at the bottom, or a column on the right
         val c = b.controls

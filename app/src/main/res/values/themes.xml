@@ -50,6 +50,7 @@
         <item name="iconTint">@color/finder_fg</item>
         <item name="iconPadding">4dp</item>
         <item name="iconSize">20dp</item>
+        <item name="android:maxLines">1</item>
     </style>
 
     <style name="Widget.Finderscope.ZoomButton" parent="Widget.Material3.Button.TextButton">
