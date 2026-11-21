@@ -207,7 +207,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
                 b.picture.visibility = View.VISIBLE
                 b.controls.visibility = View.VISIBLE
                 b.shutter.isEnabled = false
-                supportActionBar?.subtitle = message
+                supportActionBar?.subtitle = message.removePrefix("[Camera]")
                 window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
             CameraSession.State.CLOSED, CameraSession.State.FAILED -> {

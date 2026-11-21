@@ -12,6 +12,11 @@
         <item name="colorOutline">@color/outline</item>
         <item name="colorError">@color/error</item>
         <item name="android:windowBackground">@color/surface</item>
+        <!-- the bar above the black brand bar is black too (before Android 15's edge-to-edge) -->
+        <item name="android:statusBarColor">@color/finder_bg</item>
+        <item name="android:navigationBarColor">@color/finder_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
     <style name="Widget.Finderscope.Toolbar" parent="Widget.Material3.Toolbar">
