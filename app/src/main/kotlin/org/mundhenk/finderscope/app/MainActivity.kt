@@ -79,6 +79,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         b = ActivityMainBinding.inflate(layoutInflater)
         setContentView(b.root)
         setSupportActionBar(b.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false) // the start screen shows the name large
         // edge to edge: the picture runs under the system bars, the controls keep clear of them
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val topPad = b.topBar.paddingTop; val bottomPad = b.controls.paddingBottom

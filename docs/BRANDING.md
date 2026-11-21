@@ -19,8 +19,8 @@ target, then take the picture with the big instrument.
 
 ## 2. Colours
 
-The viewfinder is always dark (it shows a picture); the start screen and settings follow the
-system theme.
+The viewfinder and the start screen are always dark, like a camera's own screens (`start_bg`
+`#0E0E10`, `start_muted` `#9A9AA0`); settings and the log follow the system theme.
 
 | Token | Light | Dark | Used for |
 |---|---|---|---|
@@ -41,10 +41,26 @@ System font, Material 3 scale. The countdown is 96 sp bold, the shutter label ti
 
 ## 4. Components
 
-Black brand bar · start-screen card (status, hint, *Join camera Wi-Fi* filled, address, *Connect*
-outlined) · viewfinder with the picture centred at its true aspect ratio · info chip top left,
-notice bar at the bottom (scrim) · control bar: tonal round buttons on black, the orange shutter
-button in the middle · focus frames as outlines, green / red.
+* **Viewfinder** (live): the camera's picture full-bleed at its true aspect ratio on black,
+  system bars hidden (a swipe brings them back). Nothing but the picture and the controls.
+* **Top bar** over a black-to-clear gradient (`scrim_top`): close (×), camera name, then chips
+  with an icon and a short label: flash (bolt; crossed out for *off*; the camera's word for the
+  mode in capitals), self-timer (clock; `2s` / `10s`, dimmed when off), photo size (`20M`),
+  settings (gear).
+* **Bottom bar** over a clear-to-black gradient (`scrim_bottom`): the last picture as a 56 dp
+  circle with a white 2 dp edge (left), the **shutter** (centre), shots left as a large number
+  with "left" under it (right).
+* **Shutter** (`ShutterView`): 84 dp, white 4 dp ring, `accent` disc inset 9 dp; pressed
+  (focusing): disc inset 14 dp in `primary_pressed`; not ready: ring and disc translucent grey.
+* **Zoom pill** (compacts): `W` · position in `accent` · `T` on a translucent pill above the shutter.
+* **Focus frames**: outlines, `af_ok` green where in focus, `af_fail` red centre frame.
+* **Countdown**: 120 sp bold white with a soft shadow, centred. **Notices**: a translucent pill
+  above the controls, 4 s.
+* **Start screen**: dark, the icon (96 dp) and the name large, tagline, status and hint, one
+  60 dp pill button *Join camera Wi-Fi* in `accent` with the Wi-Fi icon, *Connect by address*
+  (reveals the address field and *Connect*), *Try the demo* in `accent`, the disclaimer small at
+  the bottom.
+* Icons are drawn for finderscope (`drawable/ic_*.xml`): bolt, bolt off, timer, close, Wi-Fi.
 
 ## 5. Icon
 

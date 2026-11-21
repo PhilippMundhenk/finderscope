@@ -214,11 +214,10 @@
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
-            <ImageButton
+            <org.mundhenk.finderscope.app.ShutterView
                 android:id="@+id/shutter"
                 android:layout_width="84dp"
                 android:layout_height="84dp"
-                android:background="@drawable/shutter"
                 android:contentDescription="@string/shutter_hint" />
 
             <Space

@@ -6,6 +6,7 @@
     <color name="primary_container">#FFE3D3</color>
     <color name="on_primary_container">#4A1503</color>
     <color name="accent">#E8590C</color>
+    <color name="primary_pressed">#B8440A</color>
     <color name="surface">#FFFFFF</color>
     <color name="on_surface">#1A1A1A</color>
     <color name="surface_container">#F7F7F7</color>
