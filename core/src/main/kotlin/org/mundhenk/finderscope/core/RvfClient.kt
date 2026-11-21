@@ -18,6 +18,10 @@ data class RvfInfo(
     val rotation: Int,
     /** `<Version>` ("CSC_1.0", "DSC_1.1", "1.0"), null on the 2012 firmware. */
     val version: String? = null,
+    /** Photo sizes the camera offers (width to height), in the camera's order. */
+    val resolutions: List<Pair<Int, Int>> = emptyList(),
+    /** The stream URL came from GETIPRESULT: the 2012 firmware. */
+    val fromGetIp: Boolean = false,
 ) {
     /** The number in [version] (1.0 for "CSC_1.0"), 0 when there is none. */
     val versionNumber: Double get() = version?.let { Regex("(\\d+(?:\\.\\d+)?)").find(it)?.groupValues?.get(1)?.toDoubleOrNull() } ?: 0.0
@@ -67,6 +71,8 @@ class RvfClient(
     private var controlPath = "/smp_4_"
 
     var friendlyName: String = ""; private set
+    /** "uuid:…" from the description; SSDP notices about this camera carry it in their USN. */
+    var udn: String = ""; private set
     var modelName: String = ""; private set
     /** Declared actions with their input argument names, from the SCPD. */
     var actions: Map<String, List<String>> = emptyMap(); private set
@@ -88,6 +94,7 @@ class RvfClient(
         val desc = describe()
         friendlyName = tag(desc, "friendlyName") ?: ""
         modelName = tag(desc, "modelName") ?: ""
+        udn = tag(desc, "UDN")?.trim() ?: ""
         val cds = Regex("<service>(.*?)</service>", RegexOption.DOT_MATCHES_ALL).findAll(desc)
             .map { it.groupValues[1] }.firstOrNull { it.contains("ContentDirectory") }
         controlPath = cds?.let { tag(it, "controlURL") }?.let(::pathOf) ?: "/smp_4_"
@@ -116,15 +123,32 @@ class RvfClient(
         true
     }
 
-    /** Full press. [toPhone]: ask the camera to offer the picture for download (where declared). */
-    fun shoot(toPhone: Boolean = true): RvfShot = synchronized(lock) {
-        val args = if ("REQUESTIMAGE" in actions["Shot"].orEmpty()) listOf("REQUESTIMAGE" to if (toPhone) "1" else "0") else emptyList()
-        val r = try { callLocked("Shot", args, shotTimeoutMs) } catch (e: RvfException) {
+    /**
+     * Full press. [toPhone]: ask the camera to offer the picture for download (where declared).
+     * [gps] (see [gpsInfo]): tag the picture with this position via ShotWithGPS, where declared.
+     */
+    fun shoot(toPhone: Boolean = true, gps: String? = null): RvfShot = synchronized(lock) {
+        val withGps = gps != null && has("ShotWithGPS")
+        val action = if (withGps) "ShotWithGPS" else "Shot"
+        val args = when {
+            withGps -> listOf("GPSINFO" to gps!!)
+            "REQUESTIMAGE" in actions["Shot"].orEmpty() -> listOf("REQUESTIMAGE" to if (toPhone) "1" else "0")
+            else -> emptyList()
+        }
+        val r = try { callLocked(action, args, shotTimeoutMs) } catch (e: RvfException) {
             if (e.body.contains("<errorCode>803</errorCode>")) throw RvfException("the camera could not take the picture, try again", e.status, e.body)
             throw e
         }
         RvfShot(tag(r, "AFSHOTRESULT")?.trim()?.takeIf { it.startsWith("http") }, tag(r, "AVAILSHOTS")?.trim()?.toIntOrNull())
     }
+
+    /** Photo size; returns the shots left on the card at that size, when the camera tells it. */
+    fun setResolution(width: Int, height: Int): Int? = synchronized(lock) {
+        tag(callLocked("SetResolution", listOf("RESOLUTION" to "${width}x$height")), "AVAILSHOTS")?.trim()?.toIntOrNull()
+    }
+
+    /** Self-timer on the camera's LED: 0 (off), 2 or 10 seconds. */
+    fun setTimer(seconds: Int): Unit = synchronized(lock) { callLocked("SetLED", listOf("LEDTIME" to seconds.toString())); Unit }
 
     /** One zoom step; returns the new zoom position when the camera tells it. */
     fun zoom(tele: Boolean): Int? = synchronized(lock) {
@@ -291,6 +315,11 @@ class RvfClient(
                 availShots = tag(xml, "AVAILSHOTS")?.trim()?.toIntOrNull(),
                 rotation = tag(xml, "ROTATION")?.trim()?.toIntOrNull() ?: 0,
                 version = tag(xml, "Version")?.trim()?.takeIf { it.isNotEmpty() },
+                fromGetIp = high == null && low == null && legacy != null,
+                resolutions = Regex("<Resolution>(.*?)</Resolution>", RegexOption.DOT_MATCHES_ALL).findAll(tag(xml, "Resolutions") ?: "").mapNotNull { m ->
+                    val w = tag(m.groupValues[1], "Width")?.trim()?.toIntOrNull(); val h = tag(m.groupValues[1], "Height")?.trim()?.toIntOrNull()
+                    if (w != null && h != null) w to h else null
+                }.toList(),
             )
         }
 

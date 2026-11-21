@@ -92,6 +92,20 @@ class RvfCameraSimulator(
     @Volatile var focusOk = true
     /** Reply to Shot with UPnP error 803 ("capturing failed") instead. */
     @Volatile var failShots = false
+    /** Shots left on the card, as GetInfomation / Shot / SetResolution report them (0 = full, -1 = numbering exhausted). */
+    @Volatile var availShots = 999
+    /** Answer Shot with an empty AFSHOTRESULT (the picture is taken but not named). */
+    @Volatile var emptyShotResult = false
+    /** Keep the live-view connection open but stop sending frames. */
+    @Volatile var stallStream = false
+    /** GetInfomation ROTATION. */
+    @Volatile var rotation = 0
+    /** Last values set by the client. */
+    @Volatile var led: String? = null
+    @Volatile var resolution: String? = null
+    @Volatile var flash: String? = null
+    @Volatile var gps: String? = null
+    val udn = "uuid:6a9f6c47-0c58-4f2e-9c1b-${profile.model.lowercase().padStart(12, '0').takeLast(12)}"
 
     /** Every rule a client broke; a correct client leaves this empty. */
     val violations: MutableList<String> = Collections.synchronizedList(ArrayList())
@@ -196,13 +210,13 @@ class RvfCameraSimulator(
             }
             for (arg in declared) if (!body.contains("<$arg>") && !body.contains("<$arg/>")) { violations += "$action without $arg"; return fault(402, "Invalid Args") }
             if (action != "GetInfomation" && !sessionStarted) violations += "$action before GetInfomation"
-            if ((action == "MULTIAF" || action == "AF" || action == "Shot") && streams.isEmpty()) {
+            if ((action == "MULTIAF" || action == "AF" || action == "Shot" || action == "ShotWithGPS") && streams.isEmpty()) {
                 violations += "$action while nobody reads the live stream"
                 return fault(501, "Action Failed")
             }
-            if (action == "Shot" && failShots) return fault(803, "Capture Failed")
+            if ((action == "Shot" || action == "ShotWithGPS") && failShots) return fault(803, "Capture Failed")
             val reply = answer(action, body)
-            if (action == "Shot") endStreams() // the camera stops the live view to take the picture
+            if (action == "Shot" || action == "ShotWithGPS") endStreams() // the camera stops the live view to take the picture
             return HttpResponse.xml(Upnp.soapResponse(action, reply))
         } finally { busy.set(false) }
     }
@@ -213,22 +227,35 @@ class RvfCameraSimulator(
             val s = "http://$advertisedHost:$streamPort"
             val urls = if (profile.version == null) "<GETIPRESULT>$s/livestream.avi</GETIPRESULT>"
                 else "<StreamUrl><QualityHighUrl>$s/livestream.avi</QualityHighUrl><QualityLowUrl>$s/qvga_livestream.avi</QualityLowUrl></StreamUrl>"
-            "<GETINFORMATIONRESULT>${profile.version?.let { "<Version>$it</Version>" } ?: ""}<Resolutions><Resolution><Width>5472</Width><Height>3648</Height></Resolution></Resolutions>" +
+            "<GETINFORMATIONRESULT>${profile.version?.let { "<Version>$it</Version>" } ?: ""}<Resolutions><Resolution><Width>5472</Width><Height>3648</Height></Resolution><Resolution><Width>3888</Width><Height>2592</Height></Resolution><Resolution><Width>1920</Width><Height>1080</Height></Resolution></Resolutions>" +
                 "<Flash><Supports><Support>off</Support><Support>auto</Support><Support>fill</Support></Supports><Defaultflash>auto</Defaultflash></Flash>" +
-                "<ZoomInfo><DefaultZoom>0</DefaultZoom><MaxZoom>${profile.maxZoom}</MaxZoom></ZoomInfo><AVAILSHOTS>${999 - shots.get()}</AVAILSHOTS><ROTATION>0</ROTATION>" +
+                "<ZoomInfo><DefaultZoom>0</DefaultZoom><MaxZoom>${profile.maxZoom}</MaxZoom></ZoomInfo><AVAILSHOTS>$availShots</AVAILSHOTS><ROTATION>$rotation</ROTATION>" +
                 "<StreamQuality><Quality><Option>high</Option><Option>low</Option></Quality><Default>high</Default></StreamQuality></GETINFORMATIONRESULT>" +
                 urls
         }
         "MULTIAF", "AF" -> if (focusOk) "<AFSTATUS>1x3,2x3,</AFSTATUS>" else "<AFSTATUS>AFFAIL</AFSTATUS>"
-        "Shot" -> {
+        "Shot", "ShotWithGPS" -> {
             val n = shots.incrementAndGet()
-            if (body.contains("<REQUESTIMAGE>0</REQUESTIMAGE>")) "<AFSHOTRESULT>none</AFSHOTRESULT><AVAILSHOTS>${999 - n}</AVAILSHOTS>"
-            else "<AFSHOTRESULT>http://$advertisedHost:$controlPort/DCIM/100PHOTO/SAM_%04d.JPG</AFSHOTRESULT><AVAILSHOTS>${999 - n}</AVAILSHOTS>".format(n)
+            if (action == "ShotWithGPS") gps = arg(body, "GPSINFO")
+            if (availShots > 0) availShots--
+            if (emptyShotResult || body.contains("<REQUESTIMAGE>0</REQUESTIMAGE>")) "<AFSHOTRESULT>${if (emptyShotResult) "" else "none"}</AFSHOTRESULT><AVAILSHOTS>$availShots</AVAILSHOTS>"
+            else "<AFSHOTRESULT>http://$advertisedHost:$controlPort/DCIM/100PHOTO/SAM_%04d.JPG</AFSHOTRESULT><AVAILSHOTS>$availShots</AVAILSHOTS>".format(n)
         }
+        "SetResolution" -> { resolution = arg(body, "RESOLUTION"); "<AVAILSHOTS>$availShots</AVAILSHOTS>" }
+        "SetLED" -> { led = arg(body, "LEDTIME"); "" }
         "ZoomIN" -> { zoom = minOf(profile.maxZoom, zoom + 1); "<CURRENTZOOM>$zoom</CURRENTZOOM>" }
         "ZoomOUT" -> { zoom = maxOf(0, zoom - 1); "<CURRENTZOOM>$zoom</CURRENTZOOM>" }
-        "SetFlash" -> "<CurrentFlashDisplay>${Regex("<FLASHMODE>(.*?)</FLASHMODE>").find(body)?.groupValues?.get(1) ?: ""}</CurrentFlashDisplay>"
+        "SetFlash" -> { flash = arg(body, "FLASHMODE"); "<CurrentFlashDisplay>$flash</CurrentFlashDisplay>" }
         else -> ""
+    }
+
+    private fun arg(body: String, name: String) = Regex("<$name>(.*?)</$name>", RegexOption.DOT_MATCHES_ALL).find(body)?.groupValues?.get(1) ?: ""
+
+    /** Sends the camera's SSDP notice [nts] about its ConnectionManager (rotation, byebye) to [to]. */
+    fun sendNotice(nts: String, to: java.net.InetSocketAddress) {
+        val cm = Upnp.CMS_SERVICE_TYPE
+        val bytes = SsdpNotices.notify(cm, nts, "$udn::$cm", "http://$advertisedHost:$controlPort/smp_2_")
+        java.net.DatagramSocket().use { it.send(java.net.DatagramPacket(bytes, bytes.size, to)) }
     }
 
     private fun fault(code: Int, text: String) = HttpResponse.xml(
@@ -253,6 +280,12 @@ class RvfCameraSimulator(
                 out.write(AviFrameReader.header(width, height, codec))
                 var i = 0
                 while (running.get() && !s.isClosed) {
+                    if (stallStream) {
+                        // no frames, but notice when the client gives up on the connection
+                        s.soTimeout = 50
+                        val gone = try { s.getInputStream().read() < 0 } catch (_: java.net.SocketTimeoutException) { false }
+                        if (gone) break else continue
+                    }
                     out.write(AviFrameReader.chunk(frames[i % frames.size]))
                     out.flush()
                     framesSent.incrementAndGet()
@@ -282,7 +315,7 @@ class RvfCameraSimulator(
 <device><dlna:X_DLNADOC>DMS-1.50</dlna:X_DLNADOC><deviceType>${Upnp.MEDIA_SERVER_TYPE}</deviceType>
 <friendlyName>[Camera]${profile.model}</friendlyName><manufacturer>Samsung Electronics</manufacturer>
 <modelDescription>Samsung Camera DMS</modelDescription><modelName>SP1</modelName><modelNumber>1.0</modelNumber>
-<serialNumber>20081113 Folderview</serialNumber><UDN>uuid:00000000-0000-0000-0000-00000000rvf0</UDN>
+<serialNumber>20081113 Folderview</serialNumber><UDN>$udn</UDN>
 <serviceList>
 <service><serviceType>${Upnp.CDS_SERVICE_TYPE}</serviceType><serviceId>urn:upnp-org:serviceId:ContentDirectory</serviceId><controlURL>/smp_4_</controlURL><eventSubURL>/smp_5_</eventSubURL><SCPDURL>/smp_3_</SCPDURL></service>
 <service><serviceType>${Upnp.CMS_SERVICE_TYPE}</serviceType><serviceId>urn:upnp-org:serviceId:ConnectionManager</serviceId><controlURL>/smp_7_</controlURL><eventSubURL>/smp_8_</eventSubURL><SCPDURL>/smp_6_</SCPDURL></service>
