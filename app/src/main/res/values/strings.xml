@@ -70,7 +70,7 @@
     <string name="save_pictures">Copy every picture to the phone</string>
     <string name="save_pictures_hint">Into Pictures/finderscope. The 2012 models hand over a small preview only; the full picture stays on the card.</string>
     <string name="gps_tag">Tag pictures with the phone\'s location</string>
-    <string name="gps_tag_hint">The camera writes the position into the picture. Needs the location permission.</string>
+    <string name="gps_tag_hint">The position goes into the copy on the phone. The camera\'s own file on the card stays without it: the cameras ignore a position sent to them. Needs the location permission.</string>
     <string name="version">finderscope %1$s</string>
     <string name="disclaimer">finderscope is an independent open-source project. It has no relation to Samsung Electronics and is neither endorsed nor supported by them. Camera names only say which cameras it works with.</string>
     <string name="away_title">Stay connected in the background</string>

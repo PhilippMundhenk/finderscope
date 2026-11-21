@@ -294,13 +294,16 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         multicastLock = null
     }
 
-    /** The phone's last known position for the camera's GPS tag; null without permission or fix. */
+    /** The phone's last known position for the camera's GPS argument; null without permission or fix. */
+    private fun location(): String? = position()?.let { gpsInfo(it.first, it.second) }
+
+    /** The phone's last known position (latitude, longitude); null without permission or fix. */
     @SuppressLint("MissingPermission")
-    private fun location(): String? {
+    private fun position(): Pair<Double, Double>? {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null
         val lm = getSystemService(LocationManager::class.java)
         val loc = lm.getProviders(true).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.time } ?: return null
-        return gpsInfo(loc.latitude, loc.longitude)
+        return loc.latitude to loc.longitude
     }
 
     // ---- session events (from the session's threads) ------------------------------------
@@ -410,7 +413,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     override fun onPicture(picture: RvfPicture) {
         val name = Pictures.nameFor(picture.name, picture.preview)
         try {
-            val uri = Pictures.save(this, name, picture.bytes)
+            val uri = Pictures.save(this, name, picture.bytes, if (prefs.gpsTag) position() else null)
             LogBus.log("Saved $name (${picture.bytes.size} bytes)")
             val thumb = BitmapFactory.decodeByteArray(picture.bytes, 0, picture.bytes.size, BitmapFactory.Options().apply { inSampleSize = 4 })
             ui {

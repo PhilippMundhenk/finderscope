@@ -29,7 +29,7 @@ GET  :7676/smp_2_   User-Agent: SEC_RVF_<id> (+ Access-Method: manual)   device 
 GET  :7676/smp_3_   ContentDirectory SCPD: the actions this model offers       (no pairing header)
 POST :7676/smp_4_   SOAPACTION: "urn:schemas-upnp-org:service:ContentDirectory:1#GetInfomation"
                     <- capabilities (Flash/Supports, ZoomInfo, AVAILSHOTS, StreamQuality, Version) and
-                       StreamUrl/QualityHighUrl  http://<camera>:7679/livestream.avi (640x480)
+                       StreamUrl/QualityHighUrl  http://<camera>:7679/livestream.avi (on the NX1000 the same stream as the "low" URL)
                                  QualityLowUrl   http://<camera>:7679/qvga_livestream.avi
                        or, on the 2012 firmware, GETIPRESULT = the stream URL
 GET  :7679/livestream.avi             <- 206, endless RIFF/AVI, frames in 00dc/00db chunks
@@ -139,6 +139,16 @@ words; addresses and details are kept outside this repository.
   encoder is already stopped for a picture, that report never comes: the camera stays stuck
   (spinner; only removing the battery helps). Never close, reopen or open the live view while
   a Shot is in progress, and not right after it either.
+* **Live view quality is fixed.** One encoder, about 15 fps at a low resolution (the header
+  says 320x240; the real size is in the SPS). The "high" and "low" stream URLs lead to the same
+  stream. `SetStreamQuality` is listed in the service description but the firmware has no
+  handler for it, so there is no way to ask for a better live view.
+* **Only ten commands are implemented:** GetInfomation, SetFlash, SetLED, SetResolution, ZoomIN,
+  ZoomOUT, MULTIAF, Shot, ShotWithGPS, ReleaseSelfTimer (plus AF / AFRELEASE). Exposure,
+  ISO, white balance, aperture or shutter speed cannot be set over Wi-Fi.
+* **ShotWithGPS ignores the position.** It needs a non-empty `GPSINFO` (else UPnP error 402) and
+  then takes the picture exactly like Shot; the position goes nowhere, neither into the file on
+  the card nor into `_SM`. finderscope writes the phone's position into its own copy instead.
 * **`_SM` previews** answer 503 when the file is not available (yet), 500 on memory shortage.
 * **Session end:** Wi-Fi loss on the camera side ends Remote Viewfinder; leaving the mode sends
   `ssdp:byebye`. No HeartBeat on this model.

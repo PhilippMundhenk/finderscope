@@ -51,9 +51,15 @@ The camera keeps every picture on its card as usual. finderscope also copies it 
 WB150F, WB850F, ST200F, DV300F, EX2F) hand over only a small preview; it is saved as
 `SAM_xxxx_preview.JPG`, and the full picture stays on the card. Switch copying off in *Settings*.
 
-*Tag pictures with the phone's location* (Settings) sends the phone's position with each
-picture, and the camera writes it into the file. It needs the location permission and is off
+*Tag pictures with the phone's location* (Settings) writes the phone's position into the EXIF of
+the copy on the phone. The file on the camera's card stays without it: the cameras accept a
+position with the picture command but do not use it. It needs the location permission and is off
 by default.
+
+The live view is what the camera sends: low resolution at about 15 frames a second (NX1000).
+There is no setting for a better one, and the camera's other settings (exposure, ISO, white
+balance, ...) cannot be changed over Wi-Fi: Remote Viewfinder only offers focus, shutter, timer,
+flash, photo size and zoom.
 
 ## Good to know
 

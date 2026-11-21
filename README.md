@@ -66,7 +66,7 @@ finderscope was built from what the original apps did on the wire, not from thei
 * a stalled or dropped live view comes back on its own instead of ending the session;
 * a failed picture is reported and can be retried; the original quit;
 * the self-timer's *off* really is off; GPS tags have the right hemisphere;
-* pictures are saved byte for byte, with the camera's EXIF data.
+* pictures are saved with the camera's EXIF data (plus the phone's position, if switched on).
 
 ## Documentation
 

@@ -454,6 +454,20 @@ class AppTest {
         }
     }
 
+    /** The phone's position goes into the EXIF of the copy on the phone (the cameras ignore it). */
+    @Test
+    fun positionWrittenIntoTheCopy() {
+        val uri = Pictures.save(context, "SAM_4242.JPG", jpeg(64, 48, Color.RED), 48.137 to 11.575)
+        val ll = FloatArray(2)
+        context.contentResolver.openInputStream(uri)!!.use { input -> assertTrue(android.media.ExifInterface(input).getLatLong(ll)) }
+        assertEquals(48.137f, ll[0], 1e-3f); assertEquals(11.575f, ll[1], 1e-3f)
+        val plain = Pictures.save(context, "SAM_4243.JPG", jpeg(64, 48, Color.RED), -33.86 to -151.2)
+        context.contentResolver.openInputStream(plain)!!.use { input -> assertTrue(android.media.ExifInterface(input).getLatLong(ll)) }
+        assertEquals(-33.86f, ll[0], 1e-3f); assertEquals(-151.2f, ll[1], 1e-3f)
+        val none = Pictures.save(context, "SAM_4244.JPG", jpeg(64, 48, Color.RED))
+        context.contentResolver.openInputStream(none)!!.use { input -> assertTrue(!android.media.ExifInterface(input).getLatLong(ll)) }
+    }
+
     /** The emulator's own (non-loopback) address: talking to it goes the way a real camera would. */
     private fun deviceAddress(): String? = java.net.NetworkInterface.getNetworkInterfaces().toList()
         .filter { it.isUp && !it.isLoopback }

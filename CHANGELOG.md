@@ -6,9 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-11-21
+
 ### Added
 - *Settings → Stay connected in the background*: how long the camera stays connected while
   finderscope is not on screen, 0 to 30 minutes (5 by default; 0.1.6 kept it for 10).
+
+### Fixed
+- *Tag pictures with the phone's location* did not tag anything: the cameras accept the position
+  with the picture command but ignore it (NX1000 firmware). The position is now written into the
+  EXIF of the copy on the phone.
 
 ## [0.1.6] - 2026-11-21
 
