@@ -25,10 +25,15 @@ Every module has a **95 % line-coverage gate** (JaCoCo); `check` fails below it.
   control, H.264 from the device's encoder decoded by MediaCodec, rotation, focus failure,
   preview copy, card full, resume after leaving the screen, settings, log. Then the gate.
 
+Measured on 2026-11-21: core 98.7 %, app 97.2 % lines (the CI log prints the per-file numbers
+and uncovered lines: `tools/coverage-summary.py`).
+
 ## CI and releases
 
 `.github/workflows/ci.yml`: core tests with the gate, debug + release APK, the Espresso suite
-with its gate on an emulator (API 34). Tags `vX.Y.Z` publish a GitHub release with the APK
+with its gate on an emulator (API 34). On `main` the emulator job also publishes the
+documentation screenshots (`ScreenshotTest`, demo camera) on the `screenshots` branch; copy
+them into `docs/screenshots/` when the UI changed. Tags `vX.Y.Z` publish a GitHub release with the APK
 (`git tag v0.1.0 && git push --tags`; date the CHANGELOG section first). The release APK is
 signed with the repository secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`,
 `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` when they exist, otherwise debug-signed.

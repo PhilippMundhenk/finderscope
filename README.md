@@ -42,6 +42,14 @@ No camera at hand? **Try the demo** runs a simulated camera on the phone.
 
 Everything the app can do, and tips: [docs/APP.md](docs/APP.md).
 
+## Screenshots
+
+| Start | Live view | Settings |
+|---|---|---|
+| ![start screen](docs/screenshots/start.png) | ![live view with focus frames](docs/screenshots/live.png) | ![settings](docs/screenshots/settings.png) |
+
+Taken against the built-in demo camera; more in [docs/screenshots.md](docs/screenshots.md).
+
 ## Better than the original
 
 finderscope was built from what the original apps did on the wire, not from their code
