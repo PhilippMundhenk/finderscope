@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Updates install over the previous version again: releases are signed with one fixed release
+  key. 0.1.0 to 0.1.4 had a different throwaway key each, so the first signed release needs one
+  uninstall of the old version.
+
 ## [0.1.4] - 2026-11-21
 
 ### Fixed

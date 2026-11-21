@@ -36,7 +36,11 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > app/release.keystore; fi
+          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > app/release.keystore
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # a debug key is new on every runner: phones would refuse the update over the last release
+            echo "::error::release tag without the ANDROID_KEYSTORE_* secrets: not publishing a debug-signed APK"; exit 1
+          fi
           ./gradlew :app:assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release*.apk finderscope-${GITHUB_REF_NAME//\//-}.apk
       - uses: actions/upload-artifact@v4
