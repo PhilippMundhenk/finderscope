@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-21
+
 ### Changed
 - The live view adapts to the window: top bar, picture and controls stacked in tall windows,
   settings and shutter in columns beside the picture in wide ones (landscape, split screen),
