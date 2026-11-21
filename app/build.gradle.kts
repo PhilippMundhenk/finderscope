@@ -20,7 +20,8 @@ android {
         applicationId = "org.mundhenk.finderscope"
         minSdk = 29   // WifiNetworkSpecifier: join the camera network from inside the app
         targetSdk = 35
-        versionCode = 1
+        // from the tag: v1.2.3 -> 10203, so every release installs over the one before
+        versionCode = tagVersion?.split('.')?.mapNotNull { it.toIntOrNull() }?.let { (it.getOrElse(0) { 0 } * 10000) + (it.getOrElse(1) { 0 } * 100) + it.getOrElse(2) { 0 } } ?: 1
         versionName = tagVersion ?: "0.1.0-$gitSha"    // the hash tells installed builds apart (Settings footer, first log line)
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
