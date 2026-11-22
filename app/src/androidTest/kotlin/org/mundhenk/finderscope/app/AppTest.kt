@@ -520,9 +520,15 @@ class AppTest {
             for (r in listOf(Rotation.D) + turns + Rotation.D) {
                 s.turn(r)
                 sc.onActivity { it.onRotation(r) } // the session's turn event (the notice itself: core tests)
-                waitFor(what = "upright scene for $r", timeoutMs = 15_000) {
-                    val shot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() ?: return@waitFor false
-                    uprightOnScreen(shot, portrait = r == Rotation.L || r == Rotation.R)
+                var why = "no screenshot"
+                val deadline = System.currentTimeMillis() + 15_000
+                while (true) {
+                    var box: org.mundhenk.finderscope.core.Box? = null
+                    sc.onActivity { box = it.plan?.picture }
+                    val shot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+                    why = if (shot == null || box == null) "no screenshot or no picture yet" else uprightOnScreen(shot, box!!, portrait = r == Rotation.L || r == Rotation.R) ?: break
+                    if (System.currentTimeMillis() > deadline) throw AssertionError("$codec, turned $r: $why")
+                    Thread.sleep(300)
                 }
             }
         }
@@ -532,27 +538,29 @@ class AppTest {
      * On the screen: the grey picture's bounds, and the white bar inside them must lie along its top
      * edge (and the picture be portrait or landscape as expected).
      */
-    private fun uprightOnScreen(shot: Bitmap, portrait: Boolean): Boolean {
+    private fun uprightOnScreen(shot: Bitmap, area: org.mundhenk.finderscope.core.Box, portrait: Boolean): String? {
         var l = shot.width; var t = shot.height; var r = -1; var b = -1
         val step = 4
-        for (y in 0 until shot.height step step) for (x in 0 until shot.width step step) {
+        // only where the app put the picture (the controls around it have grey text too)
+        for (y in maxOf(0, area.top) until minOf(shot.height, area.bottom) step step) for (x in maxOf(0, area.left) until minOf(shot.width, area.right) step step) {
             val c = shot.getPixel(x, y)
             val R = Color.red(c); val G = Color.green(c); val B = Color.blue(c)
             val grey = R in 70..160 && kotlin.math.abs(R - G) < 18 && kotlin.math.abs(G - B) < 18
             if (grey) { l = minOf(l, x); t = minOf(t, y); r = maxOf(r, x); b = maxOf(b, y) }
         }
-        if (r < 0) return false
+        if (r < 0) return "no picture in $area"
         val w = r - l; val h = b - t
-        if (w < 100 || h < 100 || (h > w) != portrait) return false
+        if (w < 100 || h < 100 || (h > w) != portrait) return "picture ${w}x$h at $l,$t, expected ${if (portrait) "portrait" else "landscape"} (area $area)"
         var n = 0; var sumY = 0L; var sumX = 0L
         for (y in t..b step step) for (x in l..r step step) {
             val c = shot.getPixel(x, y)
             if (Color.red(c) > 215 && Color.green(c) > 215 && Color.blue(c) > 215) { n++; sumY += y; sumX += x }
         }
-        if (n < 20) return false
+        if (n < 20) return "no white bar in the picture ${w}x$h"
         val cy = sumY.toDouble() / n; val cx = sumX.toDouble() / n
         // the bar along the top fifth, spread over the whole width
-        return cy < t + 0.25 * h && kotlin.math.abs(cx - (l + r) / 2.0) < 0.15 * w
+        val ok = cy < t + 0.25 * h && kotlin.math.abs(cx - (l + r) / 2.0) < 0.15 * w
+        return if (ok) null else "white bar centre at ${(cx - l).toInt()},${(cy - t).toInt()} in the picture ${w}x$h: not along the top"
     }
 
     /** GPS tag on: the demo camera gets ShotWithGPS when the phone knows where it is (the emulator may not). */
