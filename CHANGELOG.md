@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- With the camera turned to portrait the picture box turned, but the picture in it did not: the
+  H.264 live view was drawn on a SurfaceView, which Android draws outside the view's rotation.
+  It is now drawn on a TextureView and turns with the camera (the turn notices themselves arrive
+  since 0.1.14).
+
 ## [0.1.15] - 2026-11-22
 
 ### Changed

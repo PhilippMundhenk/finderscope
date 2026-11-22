@@ -115,12 +115,19 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         setUpShutter()
         setUpZoom(b.zoomIn, true)
         setUpZoom(b.zoomOut, false)
-        // no surface while away: the decoder goes with it and is made again at the next key frame
-        b.liveSurface.holder.addCallback(object : android.view.SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: android.view.SurfaceHolder) {}
-            override fun surfaceChanged(holder: android.view.SurfaceHolder, format: Int, width: Int, height: Int) {}
-            override fun surfaceDestroyed(holder: android.view.SurfaceHolder) { dropDecoder() }
-        })
+        // the decoder draws into the TextureView's surface; no surface while away: the decoder goes
+        // with it and is made again at the next key frame
+        b.liveSurface.surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(st: android.graphics.SurfaceTexture, width: Int, height: Int) { liveOutput = android.view.Surface(st) }
+            override fun onSurfaceTextureSizeChanged(st: android.graphics.SurfaceTexture, width: Int, height: Int) {}
+            override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
+                val out = liveOutput; liveOutput = null
+                dropDecoder(); out?.release()
+                return true
+            }
+            override fun onSurfaceTextureUpdated(st: android.graphics.SurfaceTexture) {}
+        }
+        b.liveSurface.surfaceTexture?.let { liveOutput = android.view.Surface(it) }
         b.finder.addOnLayoutChangeListener { _, l, t, r, btm, ol, ot, or_, ob -> if (r - l != or_ - ol || btm - t != ob - ot) layoutPicture() }
         showIdle(getString(R.string.status_idle), getString(R.string.howto))
     }
@@ -451,6 +458,9 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
 
     @Volatile private var decodedSize: Pair<Int, Int>? = null
 
+    /** The surface the decoder draws into (from the TextureView), while there is one. */
+    @Volatile private var liveOutput: android.view.Surface? = null
+
     /** The decoder is made again at the next key frame. */
     private fun dropDecoder() { val d = decoder; decoder = null; runCatching { d?.release() } }
 
@@ -462,7 +472,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
             return
         }
         parameterSets.observe(frame.data) // also while there is no surface yet
-        val d = decoder ?: b.liveSurface.holder.surface?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second, parameterSets, onSize = { w, h -> pictureSizeFromDecoder(w, h) }, onStats = { LogBus.log(it) }) }?.also { decoder = it } ?: return
+        val d = decoder ?: liveOutput?.takeIf { it.isValid }?.let { H264Decoder(it, streamSize.first, streamSize.second, parameterSets, onSize = { w, h -> pictureSizeFromDecoder(w, h) }, onStats = { LogBus.log(it) }) }?.also { decoder = it } ?: return
         try { d.feed(frame, System.nanoTime() / 1000) } catch (e: IllegalStateException) {
             // MediaCodec.CodecException included: start over with a fresh decoder at the next key frame
             LogBus.log("decoder error, starting over: $e")
