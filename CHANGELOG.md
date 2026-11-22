@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Faster to find the camera's Wi-Fi (field test: only noticed once the phone's Wi-Fi settings were
+  opened). A camera joined before is asked for by name right away, and Android searches for it
+  itself, without the scan limit apps have. For a new camera finderscope asks for a scan every
+  10 s (Android allows about four in two minutes, so they come early) and looks at every
+  finished scan at once, also those of the system and other apps.
+- Only camera networks are remembered, never the phone's usual Wi-Fi.
+
 ## [0.1.14] - 2026-11-21
 
 ### Fixed

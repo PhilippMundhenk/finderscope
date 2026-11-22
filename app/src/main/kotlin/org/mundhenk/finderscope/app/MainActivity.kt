@@ -198,6 +198,12 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
         applyBusy()
         b.status.setText(R.string.status_looking)
         b.statusHint.setText(R.string.status_looking_hint)
+        if (known != null) {
+            // a camera joined before: Android looks for exactly that network itself (its own scans are
+            // not limited like an app's) and connects the moment it appears, without a dialog
+            requestCameraWifi(known, timeoutMs = findWifiMs.toInt(), maxAttempts = 1, looking = true)
+            return
+        }
         // the camera may open its network long after Join: wait for it in the phone's own scan
         wifi.findCamera(known, findWifiMs) { target, searched ->
             if (!joining) return@findCamera
@@ -215,20 +221,25 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     internal var findWifiMs = 3 * 60_000L
 
     /** Asks Android for the camera network: by name where known, else with its picker. */
-    private fun requestCameraWifi(target: Pair<String, String?>?, attempt: Int = 1) {
-        b.status.setText(R.string.status_joining)
-        b.statusHint.setText(R.string.joining_wifi)
-        wifi.join(target, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }, onLost = { runOnUiThread { cameraWifiLost() } }) { network ->
+    private fun requestCameraWifi(
+        target: Pair<String, String?>?, attempt: Int = 1, timeoutMs: Int = wifi.namedTimeoutMs,
+        maxAttempts: Int = NAMED_ATTEMPTS, looking: Boolean = false,
+    ) {
+        if (!looking) {
+            b.status.setText(R.string.status_joining)
+            b.statusHint.setText(R.string.joining_wifi)
+        }
+        wifi.join(target, timeoutMs, onIdentified = { ssid, bssid -> runOnUiThread { rememberCamera(ssid, bssid) } }, onLost = { runOnUiThread { cameraWifiLost() } }) { network ->
             runOnUiThread {
                 if (!joining) return@runOnUiThread // cancelled meanwhile
-                if (network == null && target != null && attempt < NAMED_ATTEMPTS) {
+                if (network == null && target != null && attempt < maxAttempts) {
                     // seen in the scan but not joined (Android dropped or timed out the request): once more
                     LogBus.log("Android did not connect to the camera network, asking again")
-                    requestCameraWifi(target, attempt + 1); return@runOnUiThread
+                    requestCameraWifi(target, attempt + 1, timeoutMs, maxAttempts, looking); return@runOnUiThread
                 }
                 joining = false
                 if (network == null) {
-                    b.status.setText(R.string.status_idle); b.statusHint.setText(R.string.wifi_unavailable)
+                    b.status.setText(R.string.status_idle); b.statusHint.setText(if (looking) R.string.wifi_not_seen else R.string.wifi_unavailable)
                     b.wifiSettings.visibility = View.VISIBLE
                     applyBusy(); return@runOnUiThread
                 }
@@ -293,6 +304,7 @@ class MainActivity : AppCompatActivity(), CameraSession.Listener {
     internal var findTimeoutMs = 60_000L
 
     internal fun rememberCamera(ssid: String, bssid: String?) {
+        if (!CameraWifi.isCameraNetwork(ssid)) return // only camera networks, never the phone's usual Wi-Fi
         if (ssid == prefs.cameraSsid && (bssid ?: "") == prefs.cameraBssid) return
         prefs.cameraSsid = ssid; prefs.cameraBssid = bssid ?: ""
         LogBus.log("Remembered the camera network ${CameraModel.parse(ssid).name}")

@@ -599,21 +599,24 @@ class AppTest {
             val requests = CopyOnWriteArrayList<String>()
             sc.onActivity { a -> a.wifi.requester = { r, cb -> requests += r.toString(); cb.onUnavailable() }; a.wifi.scanResults = { listOf(Triple("AndroidWifi", "02:00:00:00:00:01", 1L), Triple("AP_SSC_NX1000_0-AA:BB:CC", "02:11:22:33:44:55", 3L)) } }
             onView(withId(R.id.joinWifi)).perform(tap())
-            waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_unavailable))) }
+            // the remembered camera is asked for at once (Android searches for it itself), not via the scan
+            waitForUi { onView(withId(R.id.statusHint)).check(matches(withText(R.string.wifi_not_seen))) }
             assertTrue(requests.toString(), requests.last().contains("AP_SSC_NX1000_0-AA:BB:CC"))
-            // a network seen but not joined is asked for three times before giving up
-            assertEquals(MainActivity.NAMED_ATTEMPTS, requests.size)
-            assertTrue(LogBus.snapshot().any { it.contains("asking again") })
+            assertEquals(1, requests.size)
             // "Other camera": any camera network, here another one
             sc.onActivity { a -> a.wifi.scanResults = { listOf(Triple("AP_SSC_WB250F_0-DD:EE:FF", "02:66:77:88:99:00", 2L)) } }
             onView(withId(R.id.otherCamera)).perform(tap())
-            waitFor { requests.size == 2 * MainActivity.NAMED_ATTEMPTS }
+            // a network seen in the scan but not joined is asked for three times before giving up
+            waitFor { requests.size == 1 + MainActivity.NAMED_ATTEMPTS }
             assertTrue(requests.toString(), requests.last().contains("AP_SSC_WB250F_0-DD:EE:FF"))
+            assertTrue(LogBus.snapshot().any { it.contains("asking again") })
             // a newly joined camera replaces the remembered one
             sc.onActivity { it.rememberCamera("AP_SSC_WB250F_0-DD:EE:FF", null) }
             onView(withId(R.id.joinWifi)).check(matches(withText(context.getString(R.string.join_known, "WB250F"))))
             assertEquals("AP_SSC_WB250F_0-DD:EE:FF", Prefs(context).cameraSsid)
             sc.onActivity { it.rememberCamera("AP_SSC_WB250F_0-DD:EE:FF", null) } // same again: nothing changes
+            sc.onActivity { it.rememberCamera("AndroidWifi", null) } // no camera network: not remembered
+            assertEquals("AP_SSC_WB250F_0-DD:EE:FF", Prefs(context).cameraSsid)
         }
     }
 

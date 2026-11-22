@@ -33,12 +33,13 @@ class CameraWifi(private val context: Context) {
     var requester: (NetworkRequest, ConnectivityManager.NetworkCallback) -> Unit = { r, cb ->
         // a network asked for by name gets an answer within [namedTimeoutMs] (onUnavailable), so a
         // request Android silently drops is noticed; the picker waits for the user as long as it takes
-        if (named) cm.requestNetwork(r, cb, namedTimeoutMs) else cm.requestNetwork(r, cb)
+        if (named) cm.requestNetwork(r, cb, requestTimeoutMs) else cm.requestNetwork(r, cb)
     }
 
     /** How long Android gets to connect to a camera network asked for by name. */
     var namedTimeoutMs = 30_000
     private var named = false
+    private var requestTimeoutMs = 30_000
 
     /**
      * Asks Android for the camera network. Without [known] the system shows the camera networks
@@ -49,11 +50,12 @@ class CameraWifi(private val context: Context) {
      * none came; [onIdentified] the name and hardware address of the network joined, where Android
      * tells them (it needs the location permission for that).
      */
-    fun join(known: Pair<String, String?>? = null, onIdentified: (String, String?) -> Unit = { _, _ -> }, onLost: () -> Unit = {}, onResult: (Network?) -> Unit) {
+    fun join(known: Pair<String, String?>? = null, timeoutMs: Int = namedTimeoutMs, onIdentified: (String, String?) -> Unit = { _, _ -> }, onLost: () -> Unit = {}, onResult: (Network?) -> Unit) {
         release()
         // [known]: a network by name (remembered, or just found by [findCamera]); none: Android's picker
         val target = known
         named = target != null
+        requestTimeoutMs = timeoutMs
         LogBus.log(if (target != null) "asking Android for the camera network ${CameraModel.parse(target.first).name}" else "asking Android's picker for a camera network")
         val builder = WifiNetworkSpecifier.Builder()
         if (target != null) {
@@ -117,12 +119,15 @@ class CameraWifi(private val context: Context) {
         val step = object : Runnable {
             override fun run() {
                 if (search !== this) return
+                handler.removeCallbacks(this)
                 val now = android.os.SystemClock.elapsedRealtime()
-                if (now - lastScanRequest >= 30_000) { lastScanRequest = now; requestScan() }
+                // Android grants an app about four scans per two minutes and drops the rest: asking
+                // every 10 s spends them early, when the camera most likely comes on
+                if (now - lastScanRequest >= SCAN_EVERY_MS) { lastScanRequest = now; requestScan() }
                 val results = readScan()
                 val found = results.firstOrNull { if (known != null) it.first.trim('"') == known.first else isCameraNetwork(it.first) }
                 if (found != null) {
-                    search = null
+                    stopSearch()
                     LogBus.log("Wi-Fi scan: camera network ${CameraModel.parse(found.first).name} seen after ${(now - started) / 1000} s")
                     onResult(found.first.trim('"') to (found.second.ifEmpty { null } ?: known?.second), true)
                     return
@@ -131,16 +136,29 @@ class CameraWifi(private val context: Context) {
                     reported = true
                     LogBus.log("Wi-Fi scan: ${results.size} networks, no camera network yet${results.minOfOrNull { it.third }?.let { " (newest $it s old)" } ?: ""}; looking for up to ${timeoutMs / 1000} s")
                 }
-                if (now - started >= timeoutMs) { search = null; LogBus.log("Wi-Fi scan: no camera network within ${timeoutMs / 1000} s"); onResult(null, true); return }
+                if (now - started >= timeoutMs) { stopSearch(); LogBus.log("Wi-Fi scan: no camera network within ${timeoutMs / 1000} s"); onResult(null, true); return }
                 handler.postDelayed(this, pollMs)
             }
         }
         search = step
+        // any finished scan (also one of the system or another app, e.g. the Wi-Fi settings) is looked at at once
+        if (scanResults == null) scanDone = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: Context, i: android.content.Intent) { if (search === step) step.run() }
+        }.also { androidx.core.content.ContextCompat.registerReceiver(context, it, android.content.IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION), androidx.core.content.ContextCompat.RECEIVER_EXPORTED) }
         step.run()
     }
 
+    private var scanDone: android.content.BroadcastReceiver? = null
+
+    private fun stopSearch() {
+        search?.let { handler.removeCallbacks(it) }
+        search = null
+        scanDone?.let { runCatching { context.unregisterReceiver(it) } }
+        scanDone = null
+    }
+
     /** Stops [findCamera] (Cancel). */
-    fun cancelSearch() { search?.let { handler.removeCallbacks(it) }; search = null }
+    fun cancelSearch() = stopSearch()
 
     val searching: Boolean get() = search != null
 
@@ -220,6 +238,9 @@ class CameraWifi(private val context: Context) {
 
     companion object {
         const val DEFAULT_CAMERA = "192.168.102.1"
+
+        /** How often [findCamera] asks for a fresh Wi-Fi scan (Android drops what exceeds its budget). */
+        const val SCAN_EVERY_MS = 10_000L
 
         /** `AP_SSC_<model>_...` (2013+ firmware) or `<model>_...` (2012), optionally with a `[Camera]` prefix. */
         fun isCameraNetwork(ssid: String): Boolean =
