@@ -43,6 +43,8 @@ class ConformanceTest {
         override fun onShots(available: Int) { log += "shots:$available" }
         override fun onRotation(rotation: Rotation) { this.rotation = rotation; log += "rotation:$rotation" }
         override fun onZoom(position: Int) { log += "zoom:$position" }
+        @Volatile var lastFrame: ByteArray? = null
+        override fun onFrame(frame: VideoFrame, codec: VideoCodec) { lastFrame = frame.data }
         override fun onNotice(notice: Notice, detail: String) { log += "notice:$notice" }
         fun has(prefix: String) = log.any { it.startsWith(prefix) }
     }
@@ -416,6 +418,29 @@ class ConformanceTest {
         s.sendNotice("ssdp:byebye", to)
         waitFor { ev.has("state:CLOSED:The camera ended the connection") }
         assertTrue(cs.isClosed)
+    }
+
+    /**
+     * The camera's screen and the phone show the same: a turned camera sends the scene as its
+     * sensor sees it and announces the turn; the session reports the turn so the app can show the
+     * scene upright, like the camera's own screen.
+     */
+    @Test
+    fun turnedCamera() {
+        val scenes = mapOf(Rotation.L to listOf(byteArrayOf(0, 0, 0, 1, 0x65, 0x4C)), Rotation.R to listOf(byteArrayOf(0, 0, 0, 1, 0x65, 0x52)))
+        val s = camera().apply { turnedFrames = scenes }
+        val sock = DatagramSocket(0)
+        val (cs, ev) = session(s, notices = true, noticeSocket = sock)
+        val to = InetSocketAddress("127.0.0.1", sock.localPort)
+        waitFor { cs.frames.get() > 0 }
+        for (r in listOf(Rotation.L, Rotation.R, Rotation.D)) {
+            s.turn(r, to)
+            waitFor(what = "rotation $r") { ev.rotation == r }
+            val expected = scenes[r]?.first() ?: idr
+            waitFor(what = "turned scene $r") { ev.lastFrame?.contentEquals(expected) == true }
+        }
+        assertEquals(1, s.streamOpens.get()) // a turn needs no new connection
+        assertEquals(emptyList<String>(), s.violations.toList())
     }
 
     private fun sim2() = camera(RvfCameraSimulator.Profile.WB250F)

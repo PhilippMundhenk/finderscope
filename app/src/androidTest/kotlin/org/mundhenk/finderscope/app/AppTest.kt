@@ -57,6 +57,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mundhenk.finderscope.core.AfGrid
 import org.mundhenk.finderscope.core.AviFrameReader
+import org.mundhenk.finderscope.core.Rotation
 import org.mundhenk.finderscope.core.RvfCameraSimulator
 import org.mundhenk.finderscope.core.SsdpNotices
 import java.net.InetSocketAddress
@@ -478,6 +479,82 @@ class AppTest {
         }
     }
 
+    /**
+     * The phone shows what the camera's own screen shows: whichever way the camera is held, the
+     * scene is upright, and a camera held upright gives a portrait picture. The simulated camera
+     * sends what its sensor sees when turned (a grey scene with a white bar along the world's top,
+     * which lands on another side of the frame), the test looks at the real screen.
+     */
+    @Test
+    fun displayMatchesTheCameraScreen_mjpeg() = displayMatchesTheCameraScreen(VideoCodec.MJPEG)
+
+    @Test
+    fun displayMatchesTheCameraScreen_h264() = displayMatchesTheCameraScreen(VideoCodec.H264)
+
+    /** Where the world's top lands in the sensor frame of a camera turned by [r] (the app turns it back). */
+    private fun worldTop(r: Rotation, w: Int, h: Int): (Int, Int) -> Boolean = when (r) {
+        Rotation.D -> { _, y -> y < h / 5 }
+        Rotation.L -> { x, _ -> x >= w - w / 5 }
+        Rotation.R -> { x, _ -> x < w / 5 }
+        Rotation.U -> { _, y -> y >= h - h / 5 }
+    }
+
+    private fun scene(codec: VideoCodec, r: Rotation): List<ByteArray> {
+        val w = 320; val h = 240
+        val top = worldTop(r, w, h)
+        return if (codec == VideoCodec.H264) H264.encode(w, h, 15, top)
+        else listOf(ByteArrayOutputStream().also { out ->
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            for (y in 0 until h) for (x in 0 until w) bmp.setPixel(x, y, if (top(x, y)) Color.WHITE else Color.rgb(110, 110, 110))
+            bmp.compress(Bitmap.CompressFormat.JPEG, 90, out)
+        }.toByteArray())
+    }
+
+    private fun displayMatchesTheCameraScreen(codec: VideoCodec) {
+        val turns = listOf(Rotation.L, Rotation.U, Rotation.R)
+        val s = camera(RvfCameraSimulator.Profile.NX1000, scene(codec, Rotation.D), codec, 320, 240)
+        s.turnedFrames = turns.associateWith { scene(codec, it) }
+        ActivityScenario.launch(MainActivity::class.java).use { sc ->
+            connect(s)
+            waitForShutter()
+            for (r in listOf(Rotation.D) + turns + Rotation.D) {
+                s.turn(r)
+                sc.onActivity { it.onRotation(r) } // the session's turn event (the notice itself: core tests)
+                waitFor(what = "upright scene for $r", timeoutMs = 15_000) {
+                    val shot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot() ?: return@waitFor false
+                    uprightOnScreen(shot, portrait = r == Rotation.L || r == Rotation.R)
+                }
+            }
+        }
+    }
+
+    /**
+     * On the screen: the grey picture's bounds, and the white bar inside them must lie along its top
+     * edge (and the picture be portrait or landscape as expected).
+     */
+    private fun uprightOnScreen(shot: Bitmap, portrait: Boolean): Boolean {
+        var l = shot.width; var t = shot.height; var r = -1; var b = -1
+        val step = 4
+        for (y in 0 until shot.height step step) for (x in 0 until shot.width step step) {
+            val c = shot.getPixel(x, y)
+            val R = Color.red(c); val G = Color.green(c); val B = Color.blue(c)
+            val grey = R in 70..160 && kotlin.math.abs(R - G) < 18 && kotlin.math.abs(G - B) < 18
+            if (grey) { l = minOf(l, x); t = minOf(t, y); r = maxOf(r, x); b = maxOf(b, y) }
+        }
+        if (r < 0) return false
+        val w = r - l; val h = b - t
+        if (w < 100 || h < 100 || (h > w) != portrait) return false
+        var n = 0; var sumY = 0L; var sumX = 0L
+        for (y in t..b step step) for (x in l..r step step) {
+            val c = shot.getPixel(x, y)
+            if (Color.red(c) > 215 && Color.green(c) > 215 && Color.blue(c) > 215) { n++; sumY += y; sumX += x }
+        }
+        if (n < 20) return false
+        val cy = sumY.toDouble() / n; val cx = sumX.toDouble() / n
+        // the bar along the top fifth, spread over the whole width
+        return cy < t + 0.25 * h && kotlin.math.abs(cx - (l + r) / 2.0) < 0.15 * w
+    }
+
     /** GPS tag on: the demo camera gets ShotWithGPS when the phone knows where it is (the emulator may not). */
     @Test
     fun gpsTagUsesShotWithGps() {
@@ -739,7 +816,8 @@ class AppTest {
 
     /** Real H.264 from the device's encoder, Annex B, SPS/PPS in front of the first key frame like the cameras send it. */
     object H264 {
-        fun encode(w: Int, h: Int, count: Int): List<ByteArray> {
+        /** [marker]: pixels drawn bright on mid grey (a scene with a known "up"); null = a moving gradient. */
+        fun encode(w: Int, h: Int, count: Int, marker: ((Int, Int) -> Boolean)? = null): List<ByteArray> {
             val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, w, h).apply {
                 setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
                 setInteger(MediaFormat.KEY_BIT_RATE, 400_000)
@@ -766,7 +844,15 @@ class AppTest {
                             for ((p, plane) in img.planes.withIndex()) {
                                 val pw = if (p == 0) w else w / 2; val ph = if (p == 0) h else h / 2
                                 val buf = plane.buffer
-                                for (y in 0 until ph) for (x in 0 until pw) buf.put(y * plane.rowStride + x * plane.pixelStride, (if (p == 0) (shade + x) and 0xff else 128).toByte())
+                                for (y in 0 until ph) for (x in 0 until pw) {
+                                    val v = when {
+                                        p != 0 -> 128
+                                        marker == null -> (shade + x) and 0xff
+                                        marker(x, y) -> 235
+                                        else -> 110
+                                    }
+                                    buf.put(y * plane.rowStride + x * plane.pixelStride, v.toByte())
+                                }
                             }
                             enc.queueInputBuffer(i, 0, w * h * 3 / 2, queued * 66_666L, 0)
                         }

@@ -131,6 +131,25 @@ class RvfCameraSimulator(
     @Volatile var stallStream = false
     /** GetInfomation ROTATION. */
     @Volatile var rotation = 0
+
+    /**
+     * The live view of a camera that is held turned: what its sensor sees then (the scene turned
+     * the other way), per turn. A camera's own screen shows that picture upright again, and so must
+     * the phone. Without an entry the plain frames are sent.
+     */
+    @Volatile var turnedFrames: Map<Rotation, List<ByteArray>> = emptyMap()
+    @Volatile var turned = Rotation.D; private set
+
+    /**
+     * The camera is turned: its live view now shows the scene as [r] makes the sensor see it, its
+     * GetInfomation reports the turn, and (with [to]) it announces it with an SSDP notice, out on
+     * [via] where given, like a camera on its own Wi-Fi.
+     */
+    fun turn(r: Rotation, to: java.net.InetSocketAddress? = null, via: java.net.NetworkInterface? = null) {
+        turned = r
+        rotation = when (r) { Rotation.D -> 1; Rotation.L -> 2; Rotation.U -> 3; Rotation.R -> 4 }
+        if (to != null) sendNotice("ssdp:rotation${r.name}", to, via = via)
+    }
     /** Last values set by the client. */
     @Volatile var led: String? = null
     @Volatile var resolution: String? = null
@@ -356,6 +375,7 @@ class RvfCameraSimulator(
                 out.write("HTTP/1.1 206 Partial Content\r\nContent-Type: video/avi\r\nConnection: close\r\n\r\n".toByteArray())
                 out.write(AviFrameReader.header(width, height, codec))
                 var i = 0
+                var sentFor = turned
                 while (running.get() && !s.isClosed) {
                     if (restartPending && System.currentTimeMillis() >= pausedUntil) {
                         restartPending = false
@@ -369,7 +389,10 @@ class RvfCameraSimulator(
                         if (gone && System.currentTimeMillis() < pausedUntil) { violations += "live stream closed while the camera takes the picture"; hung = true }
                         if (gone) break else continue
                     }
-                    out.write(AviFrameReader.chunk(frames[i % frames.size]))
+                    // a turn changes the scene; a new sequence starts at its first frame (H.264: parameter sets + key frame)
+                    if (turned != sentFor) { sentFor = turned; i = 0 }
+                    val fs = turnedFrames[turned] ?: frames
+                    out.write(AviFrameReader.chunk(fs[i % fs.size]))
                     out.flush()
                     framesSent.incrementAndGet()
                     i++

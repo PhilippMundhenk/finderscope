@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Tests for "the phone shows what the camera's screen shows": the simulated camera can be turned
+  (the scene arrives turned, the turn is announced), and a UI test checks on the real screen that
+  the scene is upright and portrait/landscape as on the camera, for every turn, MJPEG and H.264.
+
 ## [0.1.16] - 2026-11-22
 
 ### Fixed

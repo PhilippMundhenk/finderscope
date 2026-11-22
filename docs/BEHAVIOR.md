@@ -80,6 +80,13 @@ The camera's orientation comes from GetInfomation (`ROTATION`; the WB850 numbers
 and, while connected, from SSDP notices about its ConnectionManager carrying
 `NTS: ssdp:rotationD|U|L|R`. The live view and the preview are turned accordingly.
 
+The rule: the phone's picture is the camera's own screen. Turned, the camera keeps sending what
+its sensor sees, so the scene arrives turned in the stream (L: the world's top at the right edge
+of the frame, R: at the left, U: at the bottom). The camera's screen shows it upright, and so
+does finderscope: it turns the picture back (L by -90 degrees, R by +90, U by 180) and makes the
+picture portrait for L and R. The simulator models this (`turn()`: the turned scene plus the
+notice), and a UI test checks the real screen for every turn, for MJPEG and H.264.
+
 ## Conformance scenarios
 
 The simulator (`core`, `RvfCameraSimulator`) behaves like the cameras above and records every
