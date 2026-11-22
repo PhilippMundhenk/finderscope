@@ -546,7 +546,9 @@ class AppTest {
             val c = shot.getPixel(x, y)
             val R = Color.red(c); val G = Color.green(c); val B = Color.blue(c)
             val grey = R in 70..160 && kotlin.math.abs(R - G) < 18 && kotlin.math.abs(G - B) < 18
-            if (grey) { l = minOf(l, x); t = minOf(t, y); r = maxOf(r, x); b = maxOf(b, y) }
+            val white = R > 215 && G > 215 && B > 215
+            // the picture is the grey scene and its white bar together
+            if (grey || white) { l = minOf(l, x); t = minOf(t, y); r = maxOf(r, x); b = maxOf(b, y) }
         }
         if (r < 0) return "no picture in $area"
         val w = r - l; val h = b - t
