@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-11-22
+
 ### Changed
 - Faster to find the camera's Wi-Fi (field test: only noticed once the phone's Wi-Fi settings were
   opened). A camera joined before is asked for by name right away, and Android searches for it
