@@ -43,5 +43,8 @@ must never change.
 
 ## Clean room
 
-finderscope must stay free of the original apps' code, text and artwork. Protocol knowledge goes
-into PROTOCOL.md / BEHAVIOR.md in our own words first; code is written from those documents.
+finderscope must stay free of the original apps' code, text and artwork, and of anything from the
+camera firmware (code, addresses, internal names, files). Protocol knowledge goes into
+PROTOCOL.md / BEHAVIOR.md in our own words first; code is written from those documents. The apps
+and the NX1000 firmware were analysed for interoperability only (EU Software Directive Art. 6,
+§ 69e UrhG); the working notes of that analysis are not part of the repository.

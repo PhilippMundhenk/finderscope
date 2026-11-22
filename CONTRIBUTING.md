@@ -15,8 +15,11 @@ Every module must stay at or above 95 % line coverage; add tests with the code, 
 
 ## Clean room
 
-Do not contribute code, text or images taken from the original camera apps. Describe what a
-camera does in docs/PROTOCOL.md or docs/BEHAVIOR.md and implement from that.
+Do not contribute code, text or images taken from the original camera apps, and nothing taken
+from a camera firmware (code, addresses, internal names, the firmware files themselves). Describe
+what a camera does in docs/PROTOCOL.md or docs/BEHAVIOR.md and implement from that. Analysing an
+app or a firmware is fine where the law allows it for interoperability (in the EU: Software
+Directive Art. 6); keep the notes of such an analysis outside the repository.
 
 ## Pull requests
 

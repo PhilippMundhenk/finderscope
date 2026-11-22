@@ -2,7 +2,8 @@
 
 How the 2012–2014 Samsung Wi-Fi cameras talk to a phone in their *Remote Viewfinder* mode. The
 camera is the access point and the server; the phone is the client. Everything here is our own
-description, from published notes and from observing what the original apps sent; how those
+description, from published notes, from observing what the original apps sent and from reading
+the camera firmware (see Sources); how those
 apps behaved around it (timers, shutter semantics, what they did wrong) is in
 [BEHAVIOR.md](BEHAVIOR.md). finderscope implements this in `core`: `RvfHttp`, `RvfClient`,
 `AviFrameReader`, `SsdpNotices`, `CameraSession`.
@@ -11,6 +12,15 @@ Sources: published notes (below) and the behaviour of the camera maker's own And
 *Remote Viewfinder* 2.2.11 for the 2012 models and *SMART CAMERA App* 1.4.0 for the later ones.
 Those apps were examined for interoperability only, to learn what the cameras expect; no code,
 text or artwork of theirs is part of finderscope.
+
+The NX1000 firmware (1.15, Samsung's public download) was disassembled for the same purpose: the
+protocol was never documented, and some of the camera's behaviour (start-up, what happens around
+a picture, the live view format) could not be learned any other way. This is the
+interoperability exception of the EU Software Directive (Art. 6; § 69e UrhG in Germany): only the
+parts that handle the phone were read, and only to make an independently written program work
+with the camera. Nothing from the firmware is published or part of finderscope: no code,
+addresses, internal names or files, and the firmware is not redistributed. What it showed is
+described here in our own words ("What the NX1000 firmware shows").
 
 The published notes:
 [ge0rg/samsung-nx-hacks wiki](https://github.com/ge0rg/samsung-nx-hacks/wiki/Remote-Viewfinder)
